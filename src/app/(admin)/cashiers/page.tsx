@@ -79,9 +79,6 @@ const formSchema = z.object({
   has_discount_permission: z.boolean().default(false),
   password: z.string().optional(),
 }).refine(data => {
-    // Password is required only when creating a new user (not editing)
-    // We can't easily know if it's an edit here, so we'll handle this in the submit logic.
-    // For now, the schema makes it optional.
     return true;
 });
 
@@ -140,10 +137,18 @@ export default function CashiersPage() {
         setIsSubmitting(false);
         return;
       }
-      const { error } = await supabase.functions.invoke('create-cashier', { body: values });
+      
+      const response = await fetch('/api/cashiers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
 
-      if (error) toast.error(`Failed to create cashier: ${error.message}`);
-      else {
+      const result = await response.json();
+
+      if (!response.ok) {
+        toast.error(`Failed to create cashier: ${result.error || 'An unknown error occurred.'}`);
+      } else {
         toast.success("Cashier created successfully!");
         await fetchCashiers();
         setDialogOpen(false);
@@ -154,9 +159,18 @@ export default function CashiersPage() {
 
   const handleDelete = async () => {
     if (!cashierToDelete || !cashierToDelete.user_id) return;
-    const { error } = await supabase.functions.invoke('delete-cashier', { body: { user_id: cashierToDelete.user_id } });
-    if (error) toast.error(`Failed to delete cashier: ${error.message}`);
-    else {
+    
+    const response = await fetch('/api/cashiers', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: cashierToDelete.user_id }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      toast.error(`Failed to delete cashier: ${result.error || 'An unknown error occurred.'}`);
+    } else {
       toast.success("Cashier deleted successfully!");
       fetchCashiers();
     }
