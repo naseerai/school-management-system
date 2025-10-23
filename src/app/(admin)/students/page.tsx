@@ -54,7 +54,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 
 type StudentType = {
@@ -244,9 +243,34 @@ function StudentTypeCombobox({ studentTypes, value, onChange, onNewTypeAdded }: 
   const [isAdding, setIsAdding] = useState(false);
 
   const handleAddNewType = async () => {
-    if (!newTypeName.trim()) return;
+    const trimmedName = newTypeName.trim();
+    if (!trimmedName) return;
     setIsAdding(true);
-    const { data, error } = await supabase.from("student_types").insert({ name: newTypeName.trim() }).select().single();
+
+    const { data: existingType, error: fetchError } = await supabase
+      .from("student_types")
+      .select("id")
+      .ilike("name", trimmedName)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows found, which is expected
+      toast.error("Error checking for existing student type.");
+      setIsAdding(false);
+      return;
+    }
+
+    if (existingType) {
+      toast.error(`Student type "${trimmedName}" already exists.`);
+      setIsAdding(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("student_types")
+      .insert({ name: trimmedName })
+      .select()
+      .single();
+
     if (error) {
       toast.error(`Failed to add type: ${error.message}`);
     } else {
