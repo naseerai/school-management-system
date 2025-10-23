@@ -8,16 +8,14 @@ import {
 
 export default function Dashboard() {
   return (
-    <div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Dashboard</CardTitle>
-          <CardDescription>Welcome to the Admin Portal.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>This is the main dashboard. More features will be added soon!</p>
-        </CardContent>
-      </Card>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Dashboard</CardTitle>
+        <CardDescription>Welcome to the Admin Portal.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p>This is the main dashboard. More features will be added soon!</p>
+      </CardContent>
+    </Card>
   );
 }

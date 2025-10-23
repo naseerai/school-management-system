@@ -8,16 +8,14 @@ import {
 
 export default function AcademicYearsPage() {
   return (
-    <div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Academic Years</CardTitle>
-          <CardDescription>Manage academic years.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>Academic year management features will be implemented here.</p>
-        </Content>
-      </Card>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Academic Years</CardTitle>
+        <CardDescription>Manage academic years.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p>Academic year management features will be implemented here.</p>
+      </Content>
+    </Card>
   );
 }

@@ -8,16 +8,14 @@ import {
 
 export default function StudentsPage() {
   return (
-    <div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Students</CardTitle>
-          <CardDescription>Manage student information.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>Student management features will be implemented here.</p>
-        </CardContent>
-      </Card>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Students</CardTitle>
+        <CardDescription>Manage student information.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p>Student management features will be implemented here.</p>
+      </CardContent>
+    </Card>
   );
 }
