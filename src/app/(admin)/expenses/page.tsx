@@ -1,0 +1,23 @@
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+export default function ExpensesPage() {
+  return (
+    <div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Expenses</CardTitle>
+          <CardDescription>Track and manage expenses.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p>Expense management features will be implemented here.</p>
+        </Content>
+      </Card>
+    </div>
+  );
+}
