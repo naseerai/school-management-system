@@ -14,6 +14,7 @@ import {
   Calendar,
   Settings,
   Search,
+  History,
 } from "lucide-react";
 import {
   Sheet,
@@ -52,6 +53,7 @@ const navItems = [
     { href: "/departments", icon: Building, label: "Departments" },
     { href: "/expenses", icon: TrendingUp, label: "Expenses" },
     { href: "/academic-years", icon: Calendar, label: "Academic Years" },
+    { href: "/activity-logs", icon: History, label: "Activity Logs" },
     { href: "/settings", icon: Settings, label: "Settings" },
 ];
 

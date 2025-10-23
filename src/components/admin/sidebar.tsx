@@ -13,6 +13,7 @@ import {
   Calendar,
   Settings,
   Package2,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/departments", icon: Building, label: "Departments" },
   { href: "/expenses", icon: TrendingUp, label: "Expenses" },
   { href: "/academic-years", icon: Calendar, label: "Academic Years" },
+  { href: "/activity-logs", icon: History, label: "Activity Logs" },
 ];
 
 export function Sidebar() {
