@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/integrations/supabase/client';
 import { Sidebar } from "@/components/admin/sidebar";
 import { Header } from "@/components/admin/header";
@@ -12,25 +12,39 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    const checkSession = async () => {
+    const checkUserStatus = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push('/login');
+        return;
+      }
+
+      const { data: cashierProfile } = await supabase
+        .from('cashiers')
+        .select('password_change_required')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (cashierProfile?.password_change_required && pathname !== '/change-password') {
+        router.push('/change-password');
       }
     };
 
-    checkSession();
+    checkUserStatus();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         router.push('/login');
+      } else if (event === 'SIGNED_IN') {
+        checkUserStatus();
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [router]);
+  }, [router, pathname]);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">

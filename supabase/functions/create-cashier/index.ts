@@ -18,21 +18,27 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
-    const { name, email, phone, has_discount_permission } = await req.json();
+    const { name, email, phone, has_discount_permission, password } = await req.json();
 
-    // Invite the user to sign up, which sends them an email to set their password
-    const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email);
+    if (!password) {
+      throw new Error("Password is required.");
+    }
 
-    if (inviteError) {
-      throw inviteError;
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: email,
+      password: password,
+      email_confirm: true,
+    });
+
+    if (authError) {
+      throw authError;
     }
     
-    const newUser = inviteData.user;
+    const newUser = authData.user;
     if (!newUser) {
-      throw new Error("User could not be created from invitation.");
+      throw new Error("User could not be created.");
     }
 
-    // Once the user is created in the auth system, add their details to the public cashiers table
     const { error: cashierError } = await supabase
       .from('cashiers')
       .insert({
@@ -41,15 +47,15 @@ serve(async (req) => {
         email,
         phone,
         has_discount_permission,
+        password_change_required: true,
       });
 
     if (cashierError) {
-      // If this fails, we should remove the invited user to avoid orphaned accounts
       await supabase.auth.admin.deleteUser(newUser.id);
       throw cashierError;
     }
 
-    return new Response(JSON.stringify({ message: "Cashier invited successfully" }), {
+    return new Response(JSON.stringify({ message: "Cashier created successfully" }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })

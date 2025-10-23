@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { PlusCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,12 @@ const formSchema = z.object({
   email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
   has_discount_permission: z.boolean().default(false),
+  password: z.string().optional(),
+}).refine(data => {
+    // Password is required only when creating a new user (not editing)
+    // We can't easily know if it's an edit here, so we'll handle this in the submit logic.
+    // For now, the schema makes it optional.
+    return true;
 });
 
 export default function CashiersPage() {
@@ -90,7 +96,7 @@ export default function CashiersPage() {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", email: "", phone: "", has_discount_permission: false },
+    defaultValues: { name: "", email: "", phone: "", has_discount_permission: false, password: "" },
   });
 
   const fetchCashiers = async () => {
@@ -113,7 +119,6 @@ export default function CashiersPage() {
     setIsSubmitting(true);
     
     if (editingCashier) {
-      // Update existing cashier
       const { error } = await supabase
         .from("cashiers")
         .update({ 
@@ -123,23 +128,23 @@ export default function CashiersPage() {
         })
         .eq("id", editingCashier.id);
       
-      if (error) {
-        toast.error(`Update failed: ${error.message}`);
-      } else {
+      if (error) toast.error(`Update failed: ${error.message}`);
+      else {
         toast.success("Cashier updated successfully!");
         await fetchCashiers();
         setDialogOpen(false);
       }
     } else {
-      // Invite new cashier via Edge Function
-      const { error } = await supabase.functions.invoke('invite-cashier', {
-        body: values,
-      });
+      if (!values.password || values.password.length < 8) {
+        form.setError("password", { type: "manual", message: "Password must be at least 8 characters." });
+        setIsSubmitting(false);
+        return;
+      }
+      const { error } = await supabase.functions.invoke('create-cashier', { body: values });
 
-      if (error) {
-        toast.error(`Failed to invite cashier: ${error.message}`);
-      } else {
-        toast.success("Cashier invitation sent successfully!");
+      if (error) toast.error(`Failed to create cashier: ${error.message}`);
+      else {
+        toast.success("Cashier created successfully!");
         await fetchCashiers();
         setDialogOpen(false);
       }
@@ -149,14 +154,9 @@ export default function CashiersPage() {
 
   const handleDelete = async () => {
     if (!cashierToDelete || !cashierToDelete.user_id) return;
-    
-    const { error } = await supabase.functions.invoke('delete-cashier', {
-      body: { user_id: cashierToDelete.user_id },
-    });
-
-    if (error) {
-      toast.error(`Failed to delete cashier: ${error.message}`);
-    } else {
+    const { error } = await supabase.functions.invoke('delete-cashier', { body: { user_id: cashierToDelete.user_id } });
+    if (error) toast.error(`Failed to delete cashier: ${error.message}`);
+    else {
       toast.success("Cashier deleted successfully!");
       fetchCashiers();
     }
@@ -165,14 +165,25 @@ export default function CashiersPage() {
 
   const handleEdit = (cashier: Cashier) => {
     setEditingCashier(cashier);
-    form.reset(cashier);
+    form.reset({ ...cashier, password: "" });
     setDialogOpen(true);
+  };
+
+  const generateRandomPassword = () => {
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
+    let retVal = "";
+    for (let i = 0, n = charset.length; i < length; ++i) {
+      retVal += charset.charAt(Math.floor(Math.random() * n));
+    }
+    form.setValue("password", retVal);
+    toast.info("Random password generated and filled.");
   };
 
   useEffect(() => {
     if (!dialogOpen) {
       setEditingCashier(null);
-      form.reset({ name: "", email: "", phone: "", has_discount_permission: false });
+      form.reset({ name: "", email: "", phone: "", has_discount_permission: false, password: "" });
     }
   }, [dialogOpen, form]);
 
@@ -203,6 +214,16 @@ export default function CashiersPage() {
                     <FormField control={form.control} name="email" render={({ field }) => (
                       <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} disabled={!!editingCashier} /></FormControl><FormMessage /></FormItem>
                     )} />
+                    {!editingCashier && (
+                      <FormField control={form.control} name="password" render={({ field }) => (
+                        <FormItem><FormLabel>Password</FormLabel>
+                          <div className="flex items-center gap-2">
+                            <FormControl><Input type="text" {...field} /></FormControl>
+                            <Button type="button" variant="outline" size="icon" onClick={generateRandomPassword}><Sparkles className="h-4 w-4" /></Button>
+                          </div>
+                        <FormMessage /></FormItem>
+                      )} />
+                    )}
                     <FormField control={form.control} name="phone" render={({ field }) => (
                       <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
