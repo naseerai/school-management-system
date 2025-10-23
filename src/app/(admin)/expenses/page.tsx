@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Download } from "lucide-react";
 import { toast } from "sonner";
+import Papa from "papaparse";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -158,6 +159,31 @@ export default function ExpensesPage() {
     setDialogOpen(true);
   };
 
+  const handleDownload = () => {
+    if (expenses.length === 0) {
+      toast.info("No expenses to download.");
+      return;
+    }
+    const dataToExport = expenses.map(exp => ({
+      Date: exp.expense_date,
+      Department: exp.departments?.name || 'N/A',
+      Amount: exp.amount,
+      Description: exp.description || '',
+    }));
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    const today = new Date().toISOString().split('T')[0];
+    link.setAttribute("download", `expenses_${today}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Expense sheet downloaded.");
+  };
+
   useEffect(() => {
     if (!dialogOpen) {
       setEditingExpense(null);
@@ -175,7 +201,7 @@ export default function ExpensesPage() {
               <CardDescription>Track and manage all expenses.</CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="gap-1" onClick={() => toast.info("Download feature coming soon!")}>
+              <Button variant="outline" size="sm" className="gap-1" onClick={handleDownload}>
                 <Download className="h-3.5 w-3.5" />
                 <span className="sr-only sm:not-sr-only">Download Daily Sheet</span>
               </Button>
