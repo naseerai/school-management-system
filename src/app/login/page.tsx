@@ -34,6 +34,7 @@ export default function LoginPage() {
             providers={[]}
             theme="light"
             view="sign_in"
+            showLinks={false}
           />
         </CardContent>
       </Card>

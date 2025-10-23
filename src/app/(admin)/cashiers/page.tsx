@@ -64,8 +64,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Cashier = {
   id: string;
+  user_id: string;
   name: string;
-  username: string;
   email: string | null;
   phone: string | null;
   has_discount_permission: boolean;
@@ -74,8 +74,7 @@ type Cashier = {
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  username: z.string().min(1, "Username is required"),
-  email: z.string().email("Invalid email address").optional().or(z.literal('')),
+  email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
   has_discount_permission: z.boolean().default(false),
 });
@@ -91,7 +90,7 @@ export default function CashiersPage() {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", username: "", email: "", phone: "", has_discount_permission: false },
+    defaultValues: { name: "", email: "", phone: "", has_discount_permission: false },
   });
 
   const fetchCashiers = async () => {
@@ -112,27 +111,52 @@ export default function CashiersPage() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    const query = editingCashier
-      ? supabase.from("cashiers").update(values).eq("id", editingCashier.id)
-      : supabase.from("cashiers").insert([values]);
-
-    const { error } = await query;
-
-    if (error) {
-      toast.error(`Operation failed: ${error.message}`);
+    
+    if (editingCashier) {
+      // Update existing cashier
+      const { error } = await supabase
+        .from("cashiers")
+        .update({ 
+          name: values.name,
+          phone: values.phone,
+          has_discount_permission: values.has_discount_permission,
+        })
+        .eq("id", editingCashier.id);
+      
+      if (error) {
+        toast.error(`Update failed: ${error.message}`);
+      } else {
+        toast.success("Cashier updated successfully!");
+        await fetchCashiers();
+        setDialogOpen(false);
+      }
     } else {
-      toast.success(`Cashier ${editingCashier ? 'updated' : 'created'} successfully!`);
-      await fetchCashiers();
-      setDialogOpen(false);
+      // Invite new cashier via Edge Function
+      const { error } = await supabase.functions.invoke('invite-cashier', {
+        body: values,
+      });
+
+      if (error) {
+        toast.error(`Failed to invite cashier: ${error.message}`);
+      } else {
+        toast.success("Cashier invitation sent successfully!");
+        await fetchCashiers();
+        setDialogOpen(false);
+      }
     }
     setIsSubmitting(false);
   };
 
   const handleDelete = async () => {
-    if (!cashierToDelete) return;
-    const { error } = await supabase.from("cashiers").delete().eq("id", cashierToDelete.id);
-    if (error) toast.error("Failed to delete cashier.");
-    else {
+    if (!cashierToDelete || !cashierToDelete.user_id) return;
+    
+    const { error } = await supabase.functions.invoke('delete-cashier', {
+      body: { user_id: cashierToDelete.user_id },
+    });
+
+    if (error) {
+      toast.error(`Failed to delete cashier: ${error.message}`);
+    } else {
       toast.success("Cashier deleted successfully!");
       fetchCashiers();
     }
@@ -148,7 +172,7 @@ export default function CashiersPage() {
   useEffect(() => {
     if (!dialogOpen) {
       setEditingCashier(null);
-      form.reset({ name: "", username: "", email: "", phone: "", has_discount_permission: false });
+      form.reset({ name: "", email: "", phone: "", has_discount_permission: false });
     }
   }, [dialogOpen, form]);
 
@@ -176,11 +200,8 @@ export default function CashiersPage() {
                     <FormField control={form.control} name="name" render={({ field }) => (
                       <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <FormField control={form.control} name="username" render={({ field }) => (
-                      <FormItem><FormLabel>Username</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
                     <FormField control={form.control} name="email" render={({ field }) => (
-                      <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} disabled={!!editingCashier} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="phone" render={({ field }) => (
                       <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -206,7 +227,7 @@ export default function CashiersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Username</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Discount Permission</TableHead>
                 <TableHead><span className="sr-only">Actions</span></TableHead>
               </TableRow>
@@ -218,7 +239,7 @@ export default function CashiersPage() {
                 cashiers.map((cashier) => (
                   <TableRow key={cashier.id}>
                     <TableCell className="font-medium">{cashier.name}</TableCell>
-                    <TableCell>{cashier.username}</TableCell>
+                    <TableCell>{cashier.email}</TableCell>
                     <TableCell>
                       {cashier.has_discount_permission ? <Badge>Yes</Badge> : <Badge variant="secondary">No</Badge>}
                     </TableCell>
@@ -245,7 +266,7 @@ export default function CashiersPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently delete the cashier "{cashierToDelete?.name}".</AlertDialogDescription>
+            <AlertDialogDescription>This will permanently delete the cashier "{cashierToDelete?.name}" and their login access.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
