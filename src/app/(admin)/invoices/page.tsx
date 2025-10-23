@@ -17,7 +17,7 @@ export default function InvoicesPage() {
       </CardHeader>
       <CardContent>
         <p>Invoice generation features will be implemented here.</p>
-      </Content>
+      </CardContent>
     </Card>
   );
 }

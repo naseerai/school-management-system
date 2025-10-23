@@ -17,7 +17,7 @@ export default function AcademicYearsPage() {
       </CardHeader>
       <CardContent>
         <p>Academic year management features will be implemented here.</p>
-      </Content>
+      </CardContent>
     </Card>
   );
 }

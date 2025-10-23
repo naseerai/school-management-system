@@ -17,7 +17,7 @@ export default function CashiersPage() {
       </CardHeader>
       <CardContent>
         <p>Cashier management features will be implemented here.</p>
-      </Content>
+      </CardContent>
     </Card>
   );
 }

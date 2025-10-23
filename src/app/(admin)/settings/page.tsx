@@ -17,7 +17,7 @@ export default function SettingsPage() {
       </CardHeader>
       <CardContent>
         <p>Settings page will be implemented here.</p>
-      </Content>
+      </CardContent>
     </Card>
   );
 }

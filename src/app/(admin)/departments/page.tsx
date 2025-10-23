@@ -17,7 +17,7 @@ export default function DepartmentsPage() {
       </CardHeader>
       <CardContent>
         <p>Department management features will be implemented here.</p>
-      </Content>
+      </CardContent>
     </Card>
   );
 }

@@ -17,7 +17,7 @@ export default function ExpensesPage() {
       </CardHeader>
       <CardContent>
         <p>Expense management features will be implemented here.</p>
-      </Content>
+      </CardContent>
     </Card>
   );
 }
