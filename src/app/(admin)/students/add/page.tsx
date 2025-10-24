@@ -59,10 +59,10 @@ import { AcademicYear } from "../academic-years/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FeeStructureEditor } from "@/components/admin/fee-structure-editor";
 
-type StudentType = {
-  id: string;
-  name: string;
-};
+// Types
+type FeeItem = { id: string; name: string; amount: number; concession: number };
+type FeeStructure = { [year: string]: FeeItem[] };
+type StudentType = { id: string; name: string };
 
 const studentFormSchema = z.object({
   roll_number: z.string().min(1, "Roll number is required"),
@@ -130,12 +130,26 @@ export default function StudentsPage() {
   };
 
   const handleDownloadSample = () => {
-    const csv = `"roll_number","name","class","section","email","phone","student_type","academic_year","studying_year","caste"\n"101","John Doe","10","A","john.doe@example.com","1234567890","Management","2024-2025","1st Year","General"`;
+    const headers = [
+      "roll_number", "name", "class", "section", "email", "phone", 
+      "student_type", "academic_year", "studying_year", "caste",
+      "first_year_tuition_fee", "first_year_jvd_fee", "first_year_concession",
+      "second_year_tuition_fee", "second_year_jvd_fee", "second_year_concession",
+      "third_year_tuition_fee", "third_year_jvd_fee", "third_year_concession",
+    ];
+    const sampleData = [
+      "101", "John Doe", "10", "A", "john.doe@example.com", "1234567890",
+      "Management", "2024-2025", "1st Year", "General",
+      "50000", "15000", "5000",
+      "52000", "15000", "2000",
+      "54000", "15000", "0",
+    ];
+    const csv = [headers.join(','), sampleData.join(',')].join('\n');
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", "sample_students.csv");
+    link.setAttribute("download", "sample_students_with_fees.csv");
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -147,6 +161,8 @@ export default function StudentsPage() {
     if (!file) return;
 
     setIsSubmitting(true);
+    const toastId = toast.loading("Processing CSV file...");
+
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
@@ -155,38 +171,71 @@ export default function StudentsPage() {
         const studentTypesMap = new Map(studentTypes.map(st => [st.name.toLowerCase(), st.id]));
         const academicYearsMap = new Map(academicYears.map(ay => [ay.year_name, ay.id]));
         
-        const studentsToInsert = rows.map(row => ({
-          roll_number: row.roll_number,
-          name: row.name,
-          class: row.class,
-          section: row.section,
-          email: row.email,
-          phone: row.phone,
-          studying_year: row.studying_year,
-          caste: row.caste,
-          student_type_id: studentTypesMap.get(row.student_type?.toLowerCase()),
-          academic_year_id: academicYearsMap.get(row.academic_year),
-        })).filter(s => s.student_type_id && s.academic_year_id);
+        const yearPrefixes = ['first', 'second', 'third', 'fourth', 'fifth'];
+        const yearMappings: { [key: string]: string } = {
+            first: '1st Year', second: '2nd Year', third: '3rd Year', fourth: '4th Year', fifth: '5th Year',
+        };
+
+        const studentsToInsert = rows.map(row => {
+            const fee_details: FeeStructure = {};
+            yearPrefixes.forEach(prefix => {
+                const yearName = yearMappings[prefix];
+                const feeItems: FeeItem[] = [];
+
+                const tuitionFee = parseFloat(row[`${prefix}_year_tuition_fee`]);
+                const jvdFee = parseFloat(row[`${prefix}_year_jvd_fee`]);
+                const concession = parseFloat(row[`${prefix}_year_concession`]);
+
+                if (!isNaN(tuitionFee)) {
+                    feeItems.push({
+                        id: crypto.randomUUID(), name: 'Tuition Fee',
+                        amount: tuitionFee, concession: !isNaN(concession) ? concession : 0,
+                    });
+                }
+                if (!isNaN(jvdFee)) {
+                    feeItems.push({
+                        id: crypto.randomUUID(), name: 'JVD Fee',
+                        amount: jvdFee, concession: 0,
+                    });
+                }
+                if (feeItems.length > 0) fee_details[yearName] = feeItems;
+            });
+
+            return {
+                roll_number: row.roll_number || row.roll_no,
+                name: row.name,
+                class: row.class || row.class_id,
+                section: row.section || row.section_id,
+                email: row.email,
+                phone: row.phone || row.mobile,
+                studying_year: row.studying_year,
+                caste: row.caste,
+                student_type_id: studentTypesMap.get(row.student_type?.toLowerCase().trim()),
+                academic_year_id: academicYearsMap.get(row.academic_year?.trim()),
+                fee_details,
+            };
+        }).filter(s => s.roll_number && s.name && s.student_type_id && s.academic_year_id);
 
         if (studentsToInsert.length !== rows.length) {
-            toast.warning("Some rows were skipped due to invalid student types or academic years.");
+            toast.warning(`Skipped ${rows.length - studentsToInsert.length} rows due to missing or invalid student types or academic years.`, { id: toastId });
         }
         if (studentsToInsert.length === 0) {
-            toast.error("No valid students found in the CSV file. Please check student types and academic years.");
+            toast.error("No valid students found in the CSV file.", { id: toastId });
             setIsSubmitting(false);
             return;
         }
 
         const { error } = await supabase.from("students").insert(studentsToInsert);
         if (error) {
-          toast.error(`Bulk upload failed: ${error.message}`);
+          toast.error(`Bulk upload failed: ${error.message}`, { id: toastId });
         } else {
-          toast.success(`${studentsToInsert.length} students uploaded successfully!`);
+          toast.success(`${studentsToInsert.length} students uploaded successfully!`, { id: toastId });
         }
         setIsSubmitting(false);
+        (event.target as HTMLInputElement).value = ""; // Reset file input
       },
       error: (error) => {
-        toast.error(`CSV parsing error: ${error.message}`);
+        toast.error(`CSV parsing error: ${error.message}`, { id: toastId });
         setIsSubmitting(false);
       }
     });
@@ -269,7 +318,7 @@ export default function StudentsPage() {
           <TabsContent value="bulk" className="pt-6">
             <div className="space-y-4 max-w-md">
               <p className="text-sm text-muted-foreground">
-                Upload a CSV file with student data. Make sure the columns match the sample file.
+                Upload a CSV file with student data, including their multi-year fee structure. Make sure the columns match the sample file.
               </p>
               <div className="flex gap-4">
                 <Button variant="outline" onClick={handleDownloadSample}>Download Sample</Button>
