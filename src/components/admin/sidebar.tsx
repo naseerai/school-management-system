@@ -23,20 +23,22 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/students", icon: Users, label: "Students" },
-  { href: "/fees", icon: Receipt, label: "Fee Structure" },
-  { href: "/invoices", icon: FileText, label: "Invoices" },
-  { href: "/cashiers", icon: UserCircle, label: "Cashiers" },
-  { href: "/departments", icon: Building, label: "Departments" },
-  { href: "/expenses", icon: TrendingUp, label: "Expenses" },
-  { href: "/academic-years", icon: Calendar, label: "Academic Years" },
-  { href: "/activity-logs", icon: History, label: "Activity Logs" },
+const allNavItems = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['admin'] },
+  { href: "/students", icon: Users, label: "Students", roles: ['admin'] },
+  { href: "/fees", icon: Receipt, label: "Fee Structure", roles: ['admin'] },
+  { href: "/invoices", icon: FileText, label: "Invoices", roles: ['admin'] },
+  { href: "/cashiers", icon: UserCircle, label: "Cashiers", roles: ['admin'] },
+  { href: "/departments", icon: Building, label: "Departments", roles: ['admin'] },
+  { href: "/expenses", icon: TrendingUp, label: "Expenses", roles: ['admin'] },
+  { href: "/academic-years", icon: Calendar, label: "Academic Years", roles: ['admin'] },
+  { href: "/activity-logs", icon: History, label: "Activity Logs", roles: ['admin'] },
+  { href: "/fee-collection", icon: Receipt, label: "Fee Collection", roles: ['cashier'] },
 ];
 
-export function Sidebar() {
+export function Sidebar({ userRole }: { userRole: 'admin' | 'cashier' }) {
   const pathname = usePathname();
+  const navItems = allNavItems.filter(item => item.roles.includes(userRole));
 
   return (
     <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">

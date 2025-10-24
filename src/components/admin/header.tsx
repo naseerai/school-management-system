@@ -44,23 +44,26 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const navItems = [
-    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/students", icon: Users, label: "Students" },
-    { href: "/fees", icon: Receipt, label: "Fee Structure" },
-    { href: "/invoices", icon: FileText, label: "Invoices" },
-    { href: "/cashiers", icon: UserCircle, label: "Cashiers" },
-    { href: "/departments", icon: Building, label: "Departments" },
-    { href: "/expenses", icon: TrendingUp, label: "Expenses" },
-    { href: "/academic-years", icon: Calendar, label: "Academic Years" },
-    { href: "/activity-logs", icon: History, label: "Activity Logs" },
-    { href: "/settings", icon: Settings, label: "Settings" },
+const allNavItems = [
+    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['admin'] },
+    { href: "/students", icon: Users, label: "Students", roles: ['admin'] },
+    { href: "/fees", icon: Receipt, label: "Fee Structure", roles: ['admin'] },
+    { href: "/invoices", icon: FileText, label: "Invoices", roles: ['admin'] },
+    { href: "/cashiers", icon: UserCircle, label: "Cashiers", roles: ['admin'] },
+    { href: "/departments", icon: Building, label: "Departments", roles: ['admin'] },
+    { href: "/expenses", icon: TrendingUp, label: "Expenses", roles: ['admin'] },
+    { href: "/academic-years", icon: Calendar, label: "Academic Years", roles: ['admin'] },
+    { href: "/activity-logs", icon: History, label: "Activity Logs", roles: ['admin'] },
+    { href: "/fee-collection", icon: Receipt, label: "Fee Collection", roles: ['cashier'] },
+    { href: "/settings", icon: Settings, label: "Settings", roles: ['admin'] },
 ];
 
-export function Header() {
+export function Header({ userRole }: { userRole: 'admin' | 'cashier' }) {
   const pathname = usePathname();
   const router = useRouter();
-  const pageTitle = navItems.find(item => pathname.startsWith(item.href))?.label || "Admin";
+  
+  const navItems = allNavItems.filter(item => item.roles.includes(userRole));
+  const pageTitle = allNavItems.find(item => pathname.startsWith(item.href))?.label || "Admin";
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -109,7 +112,7 @@ export function Header() {
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/dashboard">Dashboard</Link>
+              <Link href={userRole === 'admin' ? '/dashboard' : '/fee-collection'}>Dashboard</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
