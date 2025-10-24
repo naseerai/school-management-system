@@ -127,11 +127,11 @@ export default function EditStudentPage({ params }: { params: { studentId: strin
     <Card>
       <CardHeader>
         <div className="flex items-center gap-4">
-          <Link href="/students" passHref>
-             <Button variant="outline" size="icon" asChild>
-                <a><ArrowLeft className="h-4 w-4" /></a>
-             </Button>
-          </Link>
+          <Button variant="outline" size="icon" asChild>
+            <Link href="/students">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
           <div>
             <CardTitle>Edit Student</CardTitle>
             <CardDescription>Update the details for {form.getValues("name")}.</CardDescription>

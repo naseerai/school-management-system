@@ -16,7 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AcademicYear } from "../academic-years/page";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 // Schemas
 const searchSchema = z.object({
@@ -31,9 +32,8 @@ const paymentSchema = z.object({
   notes: z.string().optional(),
 });
 
-const concessionSchema = z.object({
-  amount: z.coerce.number().min(1, "Amount must be greater than 0"),
-  notes: z.string().min(1, "A reason for the concession is required"),
+const editConcessionSchema = z.object({
+  amount: z.coerce.number().min(0, "Amount must be a non-negative number"),
 });
 
 // Types
@@ -59,12 +59,13 @@ export default function FeeCollectionPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [cashierProfile, setCashierProfile] = useState<CashierProfile | null>(null);
-  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
-  const [concessionDialogOpen, setConcessionDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editConcessionDialogOpen, setEditConcessionDialogOpen] = useState(false);
+  const [feeToEdit, setFeeToEdit] = useState<FeeItem | null>(null);
 
   const searchForm = useForm<z.infer<typeof searchSchema>>({ resolver: zodResolver(searchSchema), defaultValues: { academic_year_id: "", roll_number: "" } });
   const paymentForm = useForm<z.infer<typeof paymentSchema>>({ resolver: zodResolver(paymentSchema), defaultValues: { amount: 0, payment_method: "cash", notes: "" } });
-  const concessionForm = useForm<z.infer<typeof concessionSchema>>({ resolver: zodResolver(concessionSchema), defaultValues: { amount: 0, notes: "" } });
+  const editConcessionForm = useForm<z.infer<typeof editConcessionSchema>>({ resolver: zodResolver(editConcessionSchema), defaultValues: { amount: 0 } });
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -92,6 +93,18 @@ export default function FeeCollectionPage() {
     else setPayments(data as Payment[] || []);
   };
 
+  const refetchStudent = async () => {
+    if (!student) return;
+    const { data, error } = await supabase.from("students").select("*, student_types(name)").eq("id", student.id).single();
+    if (error || !data) {
+        toast.error("Failed to refresh student data.");
+        setStudent(null);
+    } else {
+        setStudent(data as StudentDetails);
+        await fetchStudentFinancials(data.id);
+    }
+  };
+
   const onSearch = async (values: z.infer<typeof searchSchema>) => {
     setIsSearching(true);
     setStudent(null);
@@ -117,7 +130,7 @@ export default function FeeCollectionPage() {
 
   const onPaymentSubmit = async (values: z.infer<typeof paymentSchema>) => {
     if (!student || !sessionUser) return;
-    setIsSubmittingPayment(true);
+    setIsSubmitting(true);
     const { error } = await supabase.from("payments").insert([{ ...values, student_id: student.id, cashier_id: cashierProfile?.id }]);
     if (error) {
       toast.error(`Payment failed: ${error.message}`);
@@ -127,31 +140,40 @@ export default function FeeCollectionPage() {
       paymentForm.reset({ amount: 0, payment_method: "cash", notes: "", fee_type: "" });
       await fetchStudentFinancials(student.id);
     }
-    setIsSubmittingPayment(false);
+    setIsSubmitting(false);
   };
 
-  const onConcessionSubmit = async (values: z.infer<typeof concessionSchema>) => {
-    if (!student || !sessionUser) return;
-    setIsSubmittingPayment(true);
-    const concessionData = {
-      student_id: student.id,
-      cashier_id: cashierProfile?.id,
-      amount: values.amount,
-      payment_method: 'concession',
-      fee_type: 'Additional Concession',
-      notes: values.notes,
-    };
-    const { error } = await supabase.from("payments").insert([concessionData]);
-    if (error) {
-      toast.error(`Concession failed: ${error.message}`);
+  const handleEditConcessionClick = (feeItem: FeeItem) => {
+    setFeeToEdit(feeItem);
+    editConcessionForm.setValue('amount', feeItem.concession || 0);
+    setEditConcessionDialogOpen(true);
+  };
+
+  const onEditConcessionSubmit = async (values: z.infer<typeof editConcessionSchema>) => {
+    if (!student || !feeToEdit) return;
+    setIsSubmitting(true);
+
+    const response = await fetch(`/api/students/${student.id}/concession`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            year: student.studying_year,
+            feeItemId: feeToEdit.id,
+            concession: values.amount,
+        }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+        toast.error(`Failed to update concession: ${result.error}`);
     } else {
-      toast.success("Concession applied successfully!");
-      await logActivity("Concession Applied", values);
-      concessionForm.reset({ amount: 0, notes: "" });
-      await fetchStudentFinancials(student.id);
-      setConcessionDialogOpen(false);
+        toast.success("Concession updated successfully!");
+        await logActivity("Concession Edited", { fee: feeToEdit.name, amount: values.amount });
+        setEditConcessionDialogOpen(false);
+        await refetchStudent();
     }
-    setIsSubmittingPayment(false);
+    setIsSubmitting(false);
   };
 
   const { totalDue, totalConcession, totalPaid, balance, feeItemsForCurrentYear } = useMemo(() => {
@@ -215,7 +237,15 @@ export default function FeeCollectionPage() {
                 <CardHeader><CardTitle>Fee Structure for {student.studying_year}</CardTitle></CardHeader>
                 <CardContent>
                   <Table>
-                    <TableHeader><TableRow><TableHead>Fee Type</TableHead><TableHead>Amount</TableHead><TableHead>Concession</TableHead><TableHead className="text-right">Payable</TableHead></TableRow></TableHeader>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fee Type</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Concession</TableHead>
+                        <TableHead className="text-right">Payable</TableHead>
+                        {cashierProfile?.has_discount_permission && <TableHead className="text-right">Actions</TableHead>}
+                      </TableRow>
+                    </TableHeader>
                     <TableBody>
                       {feeItemsForCurrentYear.length > 0 ? feeItemsForCurrentYear.map(item => (
                         <TableRow key={item.id}>
@@ -223,8 +253,15 @@ export default function FeeCollectionPage() {
                           <TableCell>{item.amount.toFixed(2)}</TableCell>
                           <TableCell>{(item.concession || 0).toFixed(2)}</TableCell>
                           <TableCell className="text-right font-medium">{(item.amount - (item.concession || 0)).toFixed(2)}</TableCell>
+                          {cashierProfile?.has_discount_permission && (
+                            <TableCell className="text-right">
+                              <Button variant="outline" size="sm" onClick={() => handleEditConcessionClick(item)}>
+                                Edit
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
-                      )) : <TableRow><TableCell colSpan={4} className="text-center">No fee structure defined for this year.</TableCell></TableRow>}
+                      )) : <TableRow><TableCell colSpan={cashierProfile?.has_discount_permission ? 5 : 4} className="text-center">No fee structure defined for this year.</TableCell></TableRow>}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -259,30 +296,7 @@ export default function FeeCollectionPage() {
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between"><CardTitle>Collect Payment</CardTitle>
-                  {cashierProfile?.has_discount_permission && (
-                    <Dialog open={concessionDialogOpen} onOpenChange={setConcessionDialogOpen}>
-                      <DialogTrigger asChild><Button variant="secondary" size="sm">Add Concession</Button></DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader><DialogTitle>Apply Additional Concession</DialogTitle></DialogHeader>
-                        <Form {...concessionForm}>
-                          <form onSubmit={concessionForm.handleSubmit(onConcessionSubmit)} className="space-y-4">
-                            <FormField control={concessionForm.control} name="amount" render={({ field }) => (
-                              <FormItem><FormLabel>Concession Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={concessionForm.control} name="notes" render={({ field }) => (
-                              <FormItem><FormLabel>Reason</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <DialogFooter>
-                              <Button type="button" variant="outline" onClick={() => setConcessionDialogOpen(false)}>Cancel</Button>
-                              <Button type="submit" disabled={isSubmittingPayment}>{isSubmittingPayment ? "Applying..." : "Apply Concession"}</Button>
-                            </DialogFooter>
-                          </form>
-                        </Form>
-                      </DialogContent>
-                    </Dialog>
-                  )}
-                </CardHeader>
+                <CardHeader><CardTitle>Collect Payment</CardTitle></CardHeader>
                 <CardContent>
                   <Form {...paymentForm}>
                     <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
@@ -308,13 +322,41 @@ export default function FeeCollectionPage() {
                       <FormField control={paymentForm.control} name="notes" render={({ field }) => (
                         <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
-                      <Button type="submit" className="w-full" disabled={isSubmittingPayment}>{isSubmittingPayment ? "Processing..." : "Collect Payment"}</Button>
+                      <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? "Processing..." : "Collect Payment"}</Button>
                     </form>
                   </Form>
                 </CardContent>
               </Card>
             </div>
           </div>
+          <Dialog open={editConcessionDialogOpen} onOpenChange={setEditConcessionDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Concession for {feeToEdit?.name}</DialogTitle>
+                </DialogHeader>
+                <Form {...editConcessionForm}>
+                    <form onSubmit={editConcessionForm.handleSubmit(onEditConcessionSubmit)} className="space-y-4">
+                        <FormField
+                            control={editConcessionForm.control}
+                            name="amount"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <Label>Concession Amount</Label>
+                                    <FormControl>
+                                        <Input type="number" step="0.01" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setEditConcessionDialogOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Save Concession"}</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>
