@@ -131,15 +131,15 @@ export default function StudentsPage() {
 
   const handleDownloadSample = () => {
     const headers = [
-      "academic_year_id", "academic_year", "roll_number", "name", "class", "section", "email", "phone", 
-      "student_type", "studying_year", "caste",
+      "roll_number", "name", "class", "section", "email", "phone", 
+      "student_type", "academic_year", "studying_year", "caste",
       "first_year_tuition_fee", "first_year_jvd_fee", "first_year_concession",
       "second_year_tuition_fee", "second_year_jvd_fee", "second_year_concession",
       "third_year_tuition_fee", "third_year_jvd_fee", "third_year_concession",
     ];
     const sampleData = [
-      "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", "2024-2025", "101", "John Doe", "10", "A", "john.doe@example.com", "1234567890",
-      "Management", "1st Year", "General",
+      "101", "John Doe", "10", "A", "john.doe@example.com", "1234567890",
+      "Management", "2024-2025", "1st Year", "General",
       "50000", "15000", "5000",
       "52000", "15000", "2000",
       "54000", "15000", "0",
@@ -201,8 +201,8 @@ export default function StudentsPage() {
                 if (feeItems.length > 0) fee_details[yearName] = feeItems;
             });
 
-            const student_type_id = row.student_type_id || studentTypesMap.get(row.student_type?.toLowerCase().trim());
-            const academic_year_id = row.academic_year_id || academicYearsMap.get(row.academic_year?.trim());
+            const student_type_id = studentTypesMap.get(row.student_type?.toLowerCase().trim());
+            const academic_year_id = academicYearsMap.get(row.academic_year?.trim());
 
             return {
                 roll_number: row.roll_number || row.roll_no,
