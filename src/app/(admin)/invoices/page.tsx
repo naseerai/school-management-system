@@ -70,10 +70,11 @@ export default function InvoicesPage() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
+    const toastId = toast.loading("Generating invoices...");
     
     const selectedFee = feeStructures.find(fs => fs.id === values.fee_structure_id);
     if (!selectedFee) {
-      toast.error("Selected fee structure not found.");
+      toast.error("Selected fee structure not found.", { id: toastId });
       setIsSubmitting(false);
       return;
     }
@@ -91,12 +92,12 @@ export default function InvoicesPage() {
     const { data: students, error: studentError } = await studentQuery;
 
     if (studentError) {
-      toast.error(`Failed to fetch students: ${studentError.message}`);
+      toast.error(`Failed to fetch students: ${studentError.message}`, { id: toastId });
       setIsSubmitting(false);
       return;
     }
     if (!students || students.length === 0) {
-      toast.warning("No students found matching the selected criteria.");
+      toast.warning("No students found matching the selected criteria.", { id: toastId });
       setIsSubmitting(false);
       return;
     }
@@ -115,7 +116,7 @@ export default function InvoicesPage() {
       .select('id');
 
     if (invoiceError || !newInvoices) {
-      toast.error(`Failed to create invoices: ${invoiceError?.message || 'Unknown error'}`);
+      toast.error(`Failed to create invoices: ${invoiceError?.message || 'Unknown error'}`, { id: toastId });
       setIsSubmitting(false);
       return;
     }
@@ -129,9 +130,9 @@ export default function InvoicesPage() {
     const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItemsToInsert);
 
     if (itemsError) {
-      toast.error(`Invoices created, but failed to add line items: ${itemsError.message}`);
+      toast.error(`Invoices created, but failed to add line items: ${itemsError.message}`, { id: toastId });
     } else {
-      toast.success(`${newInvoices.length} invoices generated successfully!`);
+      toast.success(`${newInvoices.length} invoices generated successfully!`, { id: toastId });
       form.reset();
     }
     setIsSubmitting(false);
