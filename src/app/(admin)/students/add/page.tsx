@@ -131,15 +131,15 @@ export default function StudentsPage() {
 
   const handleDownloadSample = () => {
     const headers = [
-      "roll_number", "name", "class", "section", "email", "phone", 
-      "student_type", "academic_year", "studying_year", "caste",
+      "academic_year_id", "academic_year", "roll_number", "name", "class", "section", "email", "phone", 
+      "student_type", "studying_year", "caste",
       "first_year_tuition_fee", "first_year_jvd_fee", "first_year_concession",
       "second_year_tuition_fee", "second_year_jvd_fee", "second_year_concession",
       "third_year_tuition_fee", "third_year_jvd_fee", "third_year_concession",
     ];
     const sampleData = [
-      "101", "John Doe", "10", "A", "john.doe@example.com", "1234567890",
-      "Management", "2024-2025", "1st Year", "General",
+      "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", "2024-2025", "101", "John Doe", "10", "A", "john.doe@example.com", "1234567890",
+      "Management", "1st Year", "General",
       "50000", "15000", "5000",
       "52000", "15000", "2000",
       "54000", "15000", "0",
@@ -176,7 +176,7 @@ export default function StudentsPage() {
             first: '1st Year', second: '2nd Year', third: '3rd Year', fourth: '4th Year', fifth: '5th Year',
         };
 
-        const studentsToInsert = rows.map(row => {
+        const studentsToUpsert = rows.map(row => {
             const fee_details: FeeStructure = {};
             yearPrefixes.forEach(prefix => {
                 const yearName = yearMappings[prefix];
@@ -219,20 +219,23 @@ export default function StudentsPage() {
             };
         }).filter(s => s.roll_number && s.name && s.student_type_id && s.academic_year_id);
 
-        if (studentsToInsert.length !== rows.length) {
-            toast.warning(`Skipped ${rows.length - studentsToInsert.length} rows due to missing or invalid student types or academic years.`, { id: toastId });
+        if (studentsToUpsert.length !== rows.length) {
+            toast.warning(`Skipped ${rows.length - studentsToUpsert.length} rows due to missing or invalid data (e.g., student type, academic year).`, { id: toastId });
         }
-        if (studentsToInsert.length === 0) {
-            toast.error("No valid students found in the CSV file.", { id: toastId });
+        if (studentsToUpsert.length === 0) {
+            toast.error("No valid students found in the CSV file to process.", { id: toastId });
             setIsSubmitting(false);
             return;
         }
 
-        const { error } = await supabase.from("students").insert(studentsToInsert);
+        const { error } = await supabase.from("students").upsert(studentsToUpsert, {
+          onConflict: 'roll_number,academic_year_id'
+        });
+
         if (error) {
           toast.error(`Bulk upload failed: ${error.message}`, { id: toastId });
         } else {
-          toast.success(`${studentsToInsert.length} students uploaded successfully!`, { id: toastId });
+          toast.success(`${studentsToUpsert.length} students uploaded/updated successfully!`, { id: toastId });
         }
         setIsSubmitting(false);
         (event.target as HTMLInputElement).value = ""; // Reset file input
