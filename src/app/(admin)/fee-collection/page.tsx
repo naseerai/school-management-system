@@ -106,17 +106,43 @@ export default function FeeCollectionPage() {
   const onPaymentSubmit = async (values: z.infer<typeof paymentSchema>) => {
     if (!student || !sessionUser) return;
     setIsSubmittingPayment(true);
-    const { error } = await supabase.from("payments").insert([{
+
+    const { error: paymentError } = await supabase.from("payments").insert([{
       ...values,
       student_id: student.id,
       cashier_id: sessionUser.id,
     }]);
-    if (error) toast.error(`Payment failed: ${error.message}`);
-    else {
-      toast.success("Payment recorded successfully!");
-      paymentForm.reset();
-      await fetchStudentFinancials(student.id); // Refresh data
+
+    if (paymentError) {
+      toast.error(`Payment failed: ${paymentError.message}`);
+      setIsSubmittingPayment(false);
+      return;
     }
+
+    // Find the corresponding unpaid invoice
+    const targetInvoice = invoices.find(inv =>
+      inv.status === 'unpaid' &&
+      inv.invoice_items.some(item => item.description === values.fee_type)
+    );
+
+    // If invoice is found and payment is sufficient, update its status
+    if (targetInvoice && values.amount >= targetInvoice.total_amount) {
+      const { error: updateError } = await supabase
+        .from('invoices')
+        .update({ status: 'paid' })
+        .eq('id', targetInvoice.id);
+
+      if (updateError) {
+        toast.error("Payment recorded, but failed to update invoice status.");
+      } else {
+        toast.success("Payment recorded and invoice status updated!");
+      }
+    } else {
+      toast.success("Payment recorded successfully!");
+    }
+
+    paymentForm.reset({ amount: 0, payment_method: "cash", notes: "" });
+    await fetchStudentFinancials(student.id); // Refresh data
     setIsSubmittingPayment(false);
   };
 
@@ -175,13 +201,15 @@ export default function FeeCollectionPage() {
                 <CardHeader><CardTitle>Fee Invoices</CardTitle></CardHeader>
                 <CardContent>
                   <Table>
-                    <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead>Due Date</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {invoices.length > 0 ? invoices.map(inv => (
                         <TableRow key={inv.id}>
                           <TableCell>{new Date(inv.created_at).toLocaleDateString()}</TableCell>
                           <TableCell>{inv.invoice_items[0]?.description || 'N/A'}</TableCell>
-                          <TableCell>{new Date(inv.due_date).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            {inv.status === 'paid' ? <Badge className="bg-green-100 text-green-800">Paid</Badge> : <Badge variant="destructive">Unpaid</Badge>}
+                          </TableCell>
                           <TableCell className="text-right">{inv.total_amount.toFixed(2)}</TableCell>
                         </TableRow>
                       )) : <TableRow><TableCell colSpan={4} className="text-center">No invoices found.</TableCell></TableRow>}
