@@ -112,20 +112,6 @@ export default function AcademicYearsPage() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    
-    if (values.is_active) {
-      // Simplified logic: Deactivate all other active years before proceeding.
-      const { error: updateError } = await supabase
-        .from('academic_years')
-        .update({ is_active: false })
-        .eq('is_active', true);
-
-      if (updateError) {
-        toast.error("Failed to update other active years.");
-        setIsSubmitting(false);
-        return;
-      }
-    }
 
     if (editingYear) {
       const { error } = await supabase

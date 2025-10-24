@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 
-type FeeItem = { id: string; name: string; amount: number };
+type FeeItem = { id: string; name: string; amount: number; concession: number };
 type FeeStructure = { [year: string]: FeeItem[] };
 
 interface FeeStructureEditorProps {
@@ -111,11 +111,13 @@ function YearFeeCard({ year, fees, onDeleteYear, onFeeChange }: { year: string; 
   const [editingFee, setEditingFee] = useState<FeeItem | null>(null);
   const [feeName, setFeeName] = useState("");
   const [feeAmount, setFeeAmount] = useState("");
+  const [feeConcession, setFeeConcession] = useState("");
 
   const openAddDialog = () => {
     setEditingFee(null);
     setFeeName("");
     setFeeAmount("");
+    setFeeConcession("0");
     setFeeDialogOpen(true);
   };
 
@@ -123,20 +125,22 @@ function YearFeeCard({ year, fees, onDeleteYear, onFeeChange }: { year: string; 
     setEditingFee(fee);
     setFeeName(fee.name);
     setFeeAmount(String(fee.amount));
+    setFeeConcession(String(fee.concession || 0));
     setFeeDialogOpen(true);
   };
 
   const handleSaveFee = () => {
     const amount = parseFloat(feeAmount);
+    const concession = parseFloat(feeConcession) || 0;
     if (!feeName.trim() || isNaN(amount) || amount < 0) {
       toast.error("Please enter a valid fee name and a non-negative amount.");
       return;
     }
 
     if (editingFee) {
-      onFeeChange(fees.map(f => f.id === editingFee.id ? { ...f, name: feeName, amount } : f));
+      onFeeChange(fees.map(f => f.id === editingFee.id ? { ...f, name: feeName, amount, concession } : f));
     } else {
-      onFeeChange([...fees, { id: crypto.randomUUID(), name: feeName, amount }]);
+      onFeeChange([...fees, { id: crypto.randomUUID(), name: feeName, amount, concession }]);
     }
     setFeeDialogOpen(false);
   };
@@ -158,7 +162,9 @@ function YearFeeCard({ year, fees, onDeleteYear, onFeeChange }: { year: string; 
           <TableHeader>
             <TableRow>
               <TableHead>Fee Type</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Concession</TableHead>
+              <TableHead className="text-right">Payable</TableHead>
               <TableHead className="w-[100px]"><span className="sr-only">Actions</span></TableHead>
             </TableRow>
           </TableHeader>
@@ -166,16 +172,18 @@ function YearFeeCard({ year, fees, onDeleteYear, onFeeChange }: { year: string; 
             {fees.length > 0 ? fees.map(fee => (
               <TableRow key={fee.id}>
                 <TableCell>{fee.name}</TableCell>
-                <TableCell className="text-right">{fee.amount.toFixed(2)}</TableCell>
+                <TableCell>{fee.amount.toFixed(2)}</TableCell>
+                <TableCell>{(fee.concession || 0).toFixed(2)}</TableCell>
+                <TableCell className="text-right font-medium">{(fee.amount - (fee.concession || 0)).toFixed(2)}</TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-end gap-2">
                     <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openEditDialog(fee)}><Pencil className="h-4 w-4" /></Button>
                     <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleDeleteFee(fee.id)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
             )) : (
-              <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No fees added for this year.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No fees added for this year.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -194,6 +202,10 @@ function YearFeeCard({ year, fees, onDeleteYear, onFeeChange }: { year: string; 
             <div className="space-y-2">
               <Label htmlFor="fee-amount">Amount</Label>
               <Input id="fee-amount" type="number" value={feeAmount} onChange={(e) => setFeeAmount(e.target.value)} placeholder="e.g., 50000" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fee-concession">Concession</Label>
+              <Input id="fee-concession" type="number" value={feeConcession} onChange={(e) => setFeeConcession(e.target.value)} placeholder="e.g., 5000" />
             </div>
           </div>
           <DialogFooter>

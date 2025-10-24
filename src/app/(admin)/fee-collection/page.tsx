@@ -37,7 +37,7 @@ const concessionSchema = z.object({
 });
 
 // Types
-type FeeItem = { id: string; name: string; amount: number };
+type FeeItem = { id: string; name: string; amount: number; concession: number };
 type FeeStructure = { [year: string]: FeeItem[] };
 type StudentDetails = {
   id: string; name: string; roll_number: string; class: string; studying_year: string;
@@ -138,7 +138,7 @@ export default function FeeCollectionPage() {
       cashier_id: cashierProfile?.id,
       amount: values.amount,
       payment_method: 'concession',
-      fee_type: 'Concession',
+      fee_type: 'Additional Concession',
       notes: values.notes,
     };
     const { error } = await supabase.from("payments").insert([concessionData]);
@@ -154,15 +154,23 @@ export default function FeeCollectionPage() {
     setIsSubmittingPayment(false);
   };
 
-  const { totalDue, totalPaid, balance, feeItemsForCurrentYear } = useMemo(() => {
-    if (!student?.fee_details || !student.studying_year) return { totalDue: 0, totalPaid: 0, balance: 0, feeItemsForCurrentYear: [] };
+  const { totalDue, totalConcession, totalPaid, balance, feeItemsForCurrentYear } = useMemo(() => {
+    if (!student?.fee_details || !student.studying_year) return { totalDue: 0, totalConcession: 0, totalPaid: 0, balance: 0, feeItemsForCurrentYear: [] };
     
     const feeItems = student.fee_details[student.studying_year] || [];
     const totalDue = feeItems.reduce((sum, item) => sum + item.amount, 0);
-    const totalPaid = payments.reduce((sum, pmt) => sum + pmt.amount, 0);
-    const balance = totalDue - totalPaid;
+    const definedConcession = feeItems.reduce((sum, item) => sum + (item.concession || 0), 0);
     
-    return { totalDue, totalPaid, balance, feeItemsForCurrentYear: feeItems };
+    const paymentsOnly = payments.filter(p => p.payment_method !== 'concession');
+    const additionalConcessions = payments.filter(p => p.payment_method === 'concession');
+
+    const totalPaid = paymentsOnly.reduce((sum, pmt) => sum + pmt.amount, 0);
+    const totalAdditionalConcession = additionalConcessions.reduce((sum, pmt) => sum + pmt.amount, 0);
+    
+    const totalConcession = definedConcession + totalAdditionalConcession;
+    const balance = totalDue - totalConcession - totalPaid;
+    
+    return { totalDue, totalConcession, totalPaid, balance, feeItemsForCurrentYear: feeItems };
   }, [student, payments]);
 
   return (
@@ -207,14 +215,16 @@ export default function FeeCollectionPage() {
                 <CardHeader><CardTitle>Fee Structure for {student.studying_year}</CardTitle></CardHeader>
                 <CardContent>
                   <Table>
-                    <TableHeader><TableRow><TableHead>Fee Type</TableHead><TableHead className="text-right">Amount Due</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Fee Type</TableHead><TableHead>Amount</TableHead><TableHead>Concession</TableHead><TableHead className="text-right">Payable</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {feeItemsForCurrentYear.length > 0 ? feeItemsForCurrentYear.map(item => (
                         <TableRow key={item.id}>
                           <TableCell>{item.name}</TableCell>
-                          <TableCell className="text-right">{item.amount.toFixed(2)}</TableCell>
+                          <TableCell>{item.amount.toFixed(2)}</TableCell>
+                          <TableCell>{(item.concession || 0).toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-medium">{(item.amount - (item.concession || 0)).toFixed(2)}</TableCell>
                         </TableRow>
-                      )) : <TableRow><TableCell colSpan={2} className="text-center">No fee structure defined for this year.</TableCell></TableRow>}
+                      )) : <TableRow><TableCell colSpan={4} className="text-center">No fee structure defined for this year.</TableCell></TableRow>}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -243,6 +253,7 @@ export default function FeeCollectionPage() {
                 <CardHeader><CardTitle>Fee Summary ({student.studying_year})</CardTitle></CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <div className="flex justify-between"><span>Total Due:</span><span className="font-medium">{totalDue.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>Total Concession:</span><span className="font-medium text-orange-600">{totalConcession.toFixed(2)}</span></div>
                   <div className="flex justify-between"><span>Total Paid:</span><span className="font-medium text-green-600">{totalPaid.toFixed(2)}</span></div>
                   <div className="flex justify-between font-bold text-base border-t pt-2 mt-2"><span>Balance:</span><span>{balance.toFixed(2)}</span></div>
                 </CardContent>
@@ -251,9 +262,9 @@ export default function FeeCollectionPage() {
                 <CardHeader className="flex flex-row items-center justify-between"><CardTitle>Collect Payment</CardTitle>
                   {cashierProfile?.has_discount_permission && (
                     <Dialog open={concessionDialogOpen} onOpenChange={setConcessionDialogOpen}>
-                      <DialogTrigger asChild><Button variant="secondary" size="sm">Concession</Button></DialogTrigger>
+                      <DialogTrigger asChild><Button variant="secondary" size="sm">Add Concession</Button></DialogTrigger>
                       <DialogContent>
-                        <DialogHeader><DialogTitle>Apply Concession</DialogTitle></DialogHeader>
+                        <DialogHeader><DialogTitle>Apply Additional Concession</DialogTitle></DialogHeader>
                         <Form {...concessionForm}>
                           <form onSubmit={concessionForm.handleSubmit(onConcessionSubmit)} className="space-y-4">
                             <FormField control={concessionForm.control} name="amount" render={({ field }) => (
