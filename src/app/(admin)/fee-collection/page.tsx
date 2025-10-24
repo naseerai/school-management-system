@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AcademicYear } from "../academic-years/page";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 // Schemas
 const searchSchema = z.object({
@@ -30,43 +31,51 @@ const paymentSchema = z.object({
   notes: z.string().optional(),
 });
 
+const concessionSchema = z.object({
+  fee_type: z.string().min(1, "Fee type is required"),
+  amount: z.coerce.number().min(1, "Amount must be greater than 0"),
+  notes: z.string().min(1, "A reason for the concession is required"),
+});
+
 // Types
+type FeeItem = { id: string; name: string; amount: number };
+type FeeStructure = { [year: string]: FeeItem[] };
 type StudentDetails = {
   id: string; name: string; roll_number: string; class: string; studying_year: string;
   student_types: { name: string } | null;
-  fee_details: any;
-};
-type Invoice = {
-  id: string; due_date: string; status: string; total_amount: number; penalty_amount_per_day: number; created_at: string;
-  invoice_items: { description: string; amount: number }[];
+  fee_details: FeeStructure;
 };
 type Payment = {
   id: string; amount: number; fee_type: string; payment_method: string; created_at: string; notes: string | null;
+};
+type CashierProfile = {
+  id: string;
+  has_discount_permission: boolean;
 };
 
 export default function FeeCollectionPage() {
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [student, setStudent] = useState<StudentDetails | null>(null);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
+  const [cashierProfile, setCashierProfile] = useState<CashierProfile | null>(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [concessionDialogOpen, setConcessionDialogOpen] = useState(false);
 
-  const searchForm = useForm<z.infer<typeof searchSchema>>({
-    resolver: zodResolver(searchSchema),
-    defaultValues: { academic_year_id: "", roll_number: "" },
-  });
-
-  const paymentForm = useForm<z.infer<typeof paymentSchema>>({
-    resolver: zodResolver(paymentSchema),
-    defaultValues: { amount: 0, payment_method: "cash", notes: "" },
-  });
+  const searchForm = useForm<z.infer<typeof searchSchema>>({ resolver: zodResolver(searchSchema), defaultValues: { academic_year_id: "", roll_number: "" } });
+  const paymentForm = useForm<z.infer<typeof paymentSchema>>({ resolver: zodResolver(paymentSchema), defaultValues: { amount: 0, payment_method: "cash", notes: "" } });
+  const concessionForm = useForm<z.infer<typeof concessionSchema>>({ resolver: zodResolver(concessionSchema), defaultValues: { amount: 0, notes: "" } });
 
   useEffect(() => {
     const fetchInitialData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setSessionUser(user);
+
+      if (user) {
+        const { data: profile } = await supabase.from('cashiers').select('id, has_discount_permission').eq('user_id', user.id).single();
+        setCashierProfile(profile);
+      }
 
       const { data, error } = await supabase.from("academic_years").select("*").eq("is_active", true);
       if (error) toast.error("Failed to fetch active academic year.");
@@ -79,20 +88,14 @@ export default function FeeCollectionPage() {
   }, [searchForm]);
 
   const fetchStudentFinancials = async (studentId: string) => {
-    const [invoicesRes, paymentsRes] = await Promise.all([
-      supabase.from('invoices').select('*, invoice_items(*)').eq('student_id', studentId).order('created_at', { ascending: false }),
-      supabase.from('payments').select('*').eq('student_id', studentId).order('created_at', { ascending: false })
-    ]);
-    if (invoicesRes.error) toast.error("Failed to fetch invoices.");
-    else setInvoices(invoicesRes.data as Invoice[] || []);
-    if (paymentsRes.error) toast.error("Failed to fetch payments.");
-    else setPayments(paymentsRes.data as Payment[] || []);
+    const { data, error } = await supabase.from('payments').select('*').eq('student_id', studentId).order('created_at', { ascending: false });
+    if (error) toast.error("Failed to fetch payments.");
+    else setPayments(data as Payment[] || []);
   };
 
   const onSearch = async (values: z.infer<typeof searchSchema>) => {
     setIsSearching(true);
     setStudent(null);
-    setInvoices([]);
     setPayments([]);
     const { data, error } = await supabase.from("students").select("*, student_types(name)").eq("academic_year_id", values.academic_year_id).eq("roll_number", values.roll_number).single();
     if (error || !data) toast.error("Student not found.");
@@ -103,61 +106,65 @@ export default function FeeCollectionPage() {
     setIsSearching(false);
   };
 
+  const logActivity = async (action: string, details: object) => {
+    if (!sessionUser || !student) return;
+    await supabase.from('activity_logs').insert({
+      cashier_id: cashierProfile?.id,
+      student_id: student.id,
+      action,
+      details,
+    });
+  };
+
   const onPaymentSubmit = async (values: z.infer<typeof paymentSchema>) => {
     if (!student || !sessionUser) return;
     setIsSubmittingPayment(true);
-
-    const { error: paymentError } = await supabase.from("payments").insert([{
-      ...values,
-      student_id: student.id,
-      cashier_id: sessionUser.id,
-    }]);
-
-    if (paymentError) {
-      toast.error(`Payment failed: ${paymentError.message}`);
-      setIsSubmittingPayment(false);
-      return;
-    }
-
-    // Find the corresponding unpaid invoice
-    const targetInvoice = invoices.find(inv =>
-      inv.status === 'unpaid' &&
-      inv.invoice_items.some(item => item.description === values.fee_type)
-    );
-
-    // If invoice is found and payment is sufficient, update its status
-    if (targetInvoice && values.amount >= targetInvoice.total_amount) {
-      const { error: updateError } = await supabase
-        .from('invoices')
-        .update({ status: 'paid' })
-        .eq('id', targetInvoice.id);
-
-      if (updateError) {
-        toast.error("Payment recorded, but failed to update invoice status.");
-      } else {
-        toast.success("Payment recorded and invoice status updated!");
-      }
+    const { error } = await supabase.from("payments").insert([{ ...values, student_id: student.id, cashier_id: cashierProfile?.id }]);
+    if (error) {
+      toast.error(`Payment failed: ${error.message}`);
     } else {
       toast.success("Payment recorded successfully!");
+      await logActivity("Fee Collection", values);
+      paymentForm.reset({ amount: 0, payment_method: "cash", notes: "", fee_type: "" });
+      await fetchStudentFinancials(student.id);
     }
-
-    paymentForm.reset({ amount: 0, payment_method: "cash", notes: "" });
-    await fetchStudentFinancials(student.id); // Refresh data
     setIsSubmittingPayment(false);
   };
 
-  const { totalDue, totalPaid, balance } = useMemo(() => {
-    const totalDue = invoices.reduce((sum, inv) => sum + inv.total_amount, 0);
+  const onConcessionSubmit = async (values: z.infer<typeof concessionSchema>) => {
+    if (!student || !sessionUser) return;
+    setIsSubmittingPayment(true);
+    const concessionData = {
+      student_id: student.id,
+      cashier_id: cashierProfile?.id,
+      amount: values.amount,
+      payment_method: 'concession',
+      fee_type: `Concession for ${values.fee_type}`,
+      notes: values.notes,
+    };
+    const { error } = await supabase.from("payments").insert([concessionData]);
+    if (error) {
+      toast.error(`Concession failed: ${error.message}`);
+    } else {
+      toast.success("Concession applied successfully!");
+      await logActivity("Concession Applied", values);
+      concessionForm.reset({ amount: 0, notes: "", fee_type: "" });
+      await fetchStudentFinancials(student.id);
+      setConcessionDialogOpen(false);
+    }
+    setIsSubmittingPayment(false);
+  };
+
+  const { totalDue, totalPaid, balance, feeItemsForCurrentYear } = useMemo(() => {
+    if (!student?.fee_details || !student.studying_year) return { totalDue: 0, totalPaid: 0, balance: 0, feeItemsForCurrentYear: [] };
+    
+    const feeItems = student.fee_details[student.studying_year] || [];
+    const totalDue = feeItems.reduce((sum, item) => sum + item.amount, 0);
     const totalPaid = payments.reduce((sum, pmt) => sum + pmt.amount, 0);
     const balance = totalDue - totalPaid;
-    return { totalDue, totalPaid, balance };
-  }, [invoices, payments]);
-
-  const feeTypesForPayment = useMemo(() => {
-    const types = new Set<string>();
-    invoices.forEach(inv => inv.invoice_items.forEach(item => types.add(item.description)));
-    return Array.from(types);
-  }, [invoices]);
+    
+    return { totalDue, totalPaid, balance, feeItemsForCurrentYear: feeItems };
+  }, [student, payments]);
 
   return (
     <div className="space-y-6">
@@ -191,28 +198,24 @@ export default function FeeCollectionPage() {
               <div><p className="font-medium">Name</p><p>{student.name}</p></div>
               <div><p className="font-medium">Roll No</p><p>{student.roll_number}</p></div>
               <div><p className="font-medium">Class</p><p>{student.class}</p></div>
-              <div><p className="font-medium">Student Type</p><p>{student.student_types?.name || 'N/A'}</p></div>
+              <div><p className="font-medium">Studying Year</p><p>{student.studying_year}</p></div>
             </CardContent>
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Card>
-                <CardHeader><CardTitle>Fee Invoices</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Fee Structure for {student.studying_year}</CardTitle></CardHeader>
                 <CardContent>
                   <Table>
-                    <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Fee Type</TableHead><TableHead className="text-right">Amount Due</TableHead></TableRow></TableHeader>
                     <TableBody>
-                      {invoices.length > 0 ? invoices.map(inv => (
-                        <TableRow key={inv.id}>
-                          <TableCell>{new Date(inv.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>{inv.invoice_items[0]?.description || 'N/A'}</TableCell>
-                          <TableCell>
-                            {inv.status === 'paid' ? <Badge className="bg-green-100 text-green-800">Paid</Badge> : <Badge variant="destructive">Unpaid</Badge>}
-                          </TableCell>
-                          <TableCell className="text-right">{inv.total_amount.toFixed(2)}</TableCell>
+                      {feeItemsForCurrentYear.length > 0 ? feeItemsForCurrentYear.map(item => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.name}</TableCell>
+                          <TableCell className="text-right">{item.amount.toFixed(2)}</TableCell>
                         </TableRow>
-                      )) : <TableRow><TableCell colSpan={4} className="text-center">No invoices found.</TableCell></TableRow>}
+                      )) : <TableRow><TableCell colSpan={2} className="text-center">No fee structure defined for this year.</TableCell></TableRow>}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -221,13 +224,13 @@ export default function FeeCollectionPage() {
                 <CardHeader><CardTitle>Payment History</CardTitle></CardHeader>
                 <CardContent>
                   <Table>
-                    <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Fee Type</TableHead><TableHead>Method</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead>Method</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {payments.length > 0 ? payments.map(p => (
                         <TableRow key={p.id}>
                           <TableCell>{new Date(p.created_at).toLocaleString()}</TableCell>
                           <TableCell>{p.fee_type}</TableCell>
-                          <TableCell><Badge variant="secondary">{p.payment_method.toUpperCase()}</Badge></TableCell>
+                          <TableCell><Badge variant={p.payment_method === 'concession' ? 'default' : 'secondary'}>{p.payment_method.toUpperCase()}</Badge></TableCell>
                           <TableCell className="text-right">{p.amount.toFixed(2)}</TableCell>
                         </TableRow>
                       )) : <TableRow><TableCell colSpan={4} className="text-center">No payments recorded.</TableCell></TableRow>}
@@ -238,7 +241,7 @@ export default function FeeCollectionPage() {
             </div>
             <div className="space-y-6">
               <Card>
-                <CardHeader><CardTitle>Fee Summary</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Fee Summary ({student.studying_year})</CardTitle></CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <div className="flex justify-between"><span>Total Due:</span><span className="font-medium">{totalDue.toFixed(2)}</span></div>
                   <div className="flex justify-between"><span>Total Paid:</span><span className="font-medium text-green-600">{totalPaid.toFixed(2)}</span></div>
@@ -246,7 +249,38 @@ export default function FeeCollectionPage() {
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader><CardTitle>Collect Payment</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between"><CardTitle>Collect Payment</CardTitle>
+                  {cashierProfile?.has_discount_permission && (
+                    <Dialog open={concessionDialogOpen} onOpenChange={setConcessionDialogOpen}>
+                      <DialogTrigger asChild><Button variant="secondary" size="sm">Concession</Button></DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader><DialogTitle>Apply Concession</DialogTitle></DialogHeader>
+                        <Form {...concessionForm}>
+                          <form onSubmit={concessionForm.handleSubmit(onConcessionSubmit)} className="space-y-4">
+                            <FormField control={concessionForm.control} name="fee_type" render={({ field }) => (
+                              <FormItem><FormLabel>For Fee Type</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl><SelectTrigger><SelectValue placeholder="Select fee type..." /></SelectTrigger></FormControl>
+                                  <SelectContent>{feeItemsForCurrentYear.map(ft => <SelectItem key={ft.id} value={ft.name}>{ft.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                              <FormMessage /></FormItem>
+                            )} />
+                            <FormField control={concessionForm.control} name="amount" render={({ field }) => (
+                              <FormItem><FormLabel>Concession Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={concessionForm.control} name="notes" render={({ field }) => (
+                              <FormItem><FormLabel>Reason</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <DialogFooter>
+                              <Button type="button" variant="outline" onClick={() => setConcessionDialogOpen(false)}>Cancel</Button>
+                              <Button type="submit" disabled={isSubmittingPayment}>{isSubmittingPayment ? "Applying..." : "Apply Concession"}</Button>
+                            </DialogFooter>
+                          </form>
+                        </Form>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </CardHeader>
                 <CardContent>
                   <Form {...paymentForm}>
                     <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
@@ -254,7 +288,7 @@ export default function FeeCollectionPage() {
                         <FormItem><FormLabel>Fee Type</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Select fee type..." /></SelectTrigger></FormControl>
-                            <SelectContent>{feeTypesForPayment.map(ft => <SelectItem key={ft} value={ft}>{ft}</SelectItem>)}</SelectContent>
+                            <SelectContent>{feeItemsForCurrentYear.map(ft => <SelectItem key={ft.id} value={ft.name}>{ft.name}</SelectItem>)}</SelectContent>
                           </Select>
                         <FormMessage /></FormItem>
                       )} />

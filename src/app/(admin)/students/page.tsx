@@ -224,7 +224,7 @@ export default function StudentsPage() {
                     <FormItem><FormLabel>Section</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="studying_year" render={({ field }) => (
-                    <FormItem><FormLabel>Studying Year</FormLabel><FormControl><Input placeholder="e.g., 1st Year" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Studying Year</FormLabel><FormControl><Input placeholder="e.g., 1st Year" {...field} /></FormControl><FormMessage /></FormMessage>
                   )} />
                   <FormField control={form.control} name="academic_year_id" render={({ field }) => (
                     <FormItem><FormLabel>Academic Year</FormLabel>
