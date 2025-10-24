@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
@@ -39,6 +39,7 @@ export default function InvoiceBatchDetailPage({
 }: {
   params: { batchId: string };
 }) {
+  const { batchId } = use(params);
   const [invoices, setInvoices] = useState<StudentInvoice[]>([]);
   const [batchDescription, setBatchDescription] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +51,7 @@ export default function InvoiceBatchDetailPage({
       const { data, error } = await supabase
         .from("invoices")
         .select("id, status, batch_description, students(roll_number, name)")
-        .eq("batch_id", params.batchId);
+        .eq("batch_id", batchId);
 
       if (error) {
         toast.error("Failed to fetch batch details.");
@@ -63,7 +64,7 @@ export default function InvoiceBatchDetailPage({
       setIsLoading(false);
     };
     fetchBatchDetails();
-  }, [params.batchId]);
+  }, [batchId]);
 
   const filteredInvoices = invoices.filter(
     (invoice) =>

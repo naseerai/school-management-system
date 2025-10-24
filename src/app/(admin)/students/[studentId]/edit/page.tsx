@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -71,6 +71,8 @@ const studentFormSchema = z.object({
 });
 
 export default function EditStudentPage({ params }: { params: { studentId: string } }) {
+  const { studentId } = use(params);
+
   const [studentTypes, setStudentTypes] = useState<StudentType[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,7 +89,7 @@ export default function EditStudentPage({ params }: { params: { studentId: strin
       const [typesRes, yearsRes, studentRes] = await Promise.all([
         supabase.from("student_types").select("*"),
         supabase.from("academic_years").select("*").order("year_name", { ascending: false }),
-        supabase.from("students").select("*").eq("id", params.studentId).single(),
+        supabase.from("students").select("*").eq("id", studentId).single(),
       ]);
 
       if (typesRes.error) toast.error("Failed to fetch student types.");
@@ -105,11 +107,11 @@ export default function EditStudentPage({ params }: { params: { studentId: strin
       setIsLoading(false);
     };
     fetchData();
-  }, [params.studentId, form, router]);
+  }, [studentId, form, router]);
 
   const onStudentSubmit = async (values: z.infer<typeof studentFormSchema>) => {
     setIsSubmitting(true);
-    const { error } = await supabase.from("students").update(values).eq("id", params.studentId);
+    const { error } = await supabase.from("students").update(values).eq("id", studentId);
     if (error) {
       toast.error(`Failed to update student: ${error.message}`);
     } else {
