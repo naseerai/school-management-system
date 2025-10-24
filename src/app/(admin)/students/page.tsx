@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/dialog";
 import { AcademicYear } from "../academic-years/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FeeStructureEditor } from "@/components/admin/fee-structure-editor";
 
 type StudentType = {
   id: string;
@@ -74,6 +75,7 @@ const studentFormSchema = z.object({
   academic_year_id: z.string().min(1, "Academic year is required"),
   studying_year: z.string().min(1, "Studying year is required"),
   caste: z.string().optional(),
+  fee_details: z.any().optional(),
 });
 
 export default function StudentsPage() {
@@ -94,6 +96,7 @@ export default function StudentsPage() {
       academic_year_id: "",
       studying_year: "",
       caste: "",
+      fee_details: {},
     },
   });
 
@@ -203,45 +206,61 @@ export default function StudentsPage() {
           </TabsList>
           <TabsContent value="single" className="pt-6">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onStudentSubmit)} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <FormField control={form.control} name="roll_number" render={({ field }) => (
-                  <FormItem><FormLabel>Roll Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="phone" render={({ field }) => (
-                  <FormItem><FormLabel>Mobile Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="class" render={({ field }) => (
-                  <FormItem><FormLabel>Class</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="section" render={({ field }) => (
-                  <FormItem><FormLabel>Section</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                 <FormField control={form.control} name="studying_year" render={({ field }) => (
-                  <FormItem><FormLabel>Studying Year</FormLabel><FormControl><Input placeholder="e.g., 1st Year" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="academic_year_id" render={({ field }) => (
-                  <FormItem><FormLabel>Academic Year</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select academic year..." /></SelectTrigger></FormControl>
-                      <SelectContent>{academicYears.map(ay => <SelectItem key={ay.id} value={ay.id}>{ay.year_name}</SelectItem>)}</SelectContent>
-                    </Select>
-                  <FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="student_type_id" render={({ field }) => (
-                  <FormItem className="flex flex-col"><FormLabel>Student Type</FormLabel>
-                    <StudentTypeCombobox studentTypes={studentTypes} value={field.value} onChange={field.onChange} onNewTypeAdded={fetchData} />
-                  <FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="caste" render={({ field }) => (
-                  <FormItem><FormLabel>Caste</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="email" render={({ field }) => (
-                  <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <div className="md:col-span-3 flex justify-end">
+              <form onSubmit={form.handleSubmit(onStudentSubmit)} className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <FormField control={form.control} name="roll_number" render={({ field }) => (
+                    <FormItem><FormLabel>Roll Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="name" render={({ field }) => (
+                    <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="phone" render={({ field }) => (
+                    <FormItem><FormLabel>Mobile Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="class" render={({ field }) => (
+                    <FormItem><FormLabel>Class</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="section" render={({ field }) => (
+                    <FormItem><FormLabel>Section</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="studying_year" render={({ field }) => (
+                    <FormItem><FormLabel>Studying Year</FormLabel><FormControl><Input placeholder="e.g., 1st Year" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="academic_year_id" render={({ field }) => (
+                    <FormItem><FormLabel>Academic Year</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select academic year..." /></SelectTrigger></FormControl>
+                        <SelectContent>{academicYears.map(ay => <SelectItem key={ay.id} value={ay.id}>{ay.year_name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    <FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="student_type_id" render={({ field }) => (
+                    <FormItem className="flex flex-col"><FormLabel>Student Type</FormLabel>
+                      <StudentTypeCombobox studentTypes={studentTypes} value={field.value} onChange={field.onChange} onNewTypeAdded={fetchData} />
+                    <FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="caste" render={({ field }) => (
+                    <FormItem><FormLabel>Caste</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="email" render={({ field }) => (
+                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="fee_details"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <FeeStructureEditor value={field.value || {}} onChange={field.onChange} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end">
                   <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Adding..." : "Add Student"}</Button>
                 </div>
               </form>
