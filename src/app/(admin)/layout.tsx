@@ -59,11 +59,24 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (userRole) {
+      const adminOnlyPages = [
+        '/dashboard', 
+        '/fees', 
+        '/invoices', 
+        '/cashiers', 
+        '/departments', 
+        '/expenses', 
+        '/activity-logs',
+        '/settings'
+      ];
       const cashierOnlyPages = ['/fee-collection'];
-      
-      if (userRole === 'cashier' && !cashierOnlyPages.includes(pathname) && pathname !== '/change-password') {
+
+      const currentPageIsAdminOnly = adminOnlyPages.some(p => pathname.startsWith(p));
+      const currentPageIsCashierOnly = cashierOnlyPages.some(p => pathname.startsWith(p));
+
+      if (userRole === 'cashier' && currentPageIsAdminOnly) {
         router.push('/fee-collection');
-      } else if (userRole === 'admin' && cashierOnlyPages.includes(pathname)) {
+      } else if (userRole === 'admin' && currentPageIsCashierOnly) {
         router.push('/dashboard');
       }
     }

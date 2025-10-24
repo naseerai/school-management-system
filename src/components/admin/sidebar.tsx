@@ -25,13 +25,13 @@ import {
 
 const allNavItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['admin'] },
-  { href: "/students", icon: Users, label: "Students", roles: ['admin'] },
+  { href: "/students", icon: Users, label: "Students", roles: ['admin', 'cashier'] },
   { href: "/fees", icon: Receipt, label: "Fee Structure", roles: ['admin'] },
   { href: "/invoices", icon: FileText, label: "Invoices", roles: ['admin'] },
   { href: "/cashiers", icon: UserCircle, label: "Cashiers", roles: ['admin'] },
   { href: "/departments", icon: Building, label: "Departments", roles: ['admin'] },
   { href: "/expenses", icon: TrendingUp, label: "Expenses", roles: ['admin'] },
-  { href: "/academic-years", icon: Calendar, label: "Academic Years", roles: ['admin'] },
+  { href: "/academic-years", icon: Calendar, label: "Academic Years", roles: ['admin', 'cashier'] },
   { href: "/activity-logs", icon: History, label: "Activity Logs", roles: ['admin'] },
   { href: "/fee-collection", icon: Receipt, label: "Fee Collection", roles: ['cashier'] },
 ];
