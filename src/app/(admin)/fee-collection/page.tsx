@@ -32,7 +32,6 @@ const paymentSchema = z.object({
 });
 
 const concessionSchema = z.object({
-  fee_type: z.string().min(1, "Fee type is required"),
   amount: z.coerce.number().min(1, "Amount must be greater than 0"),
   notes: z.string().min(1, "A reason for the concession is required"),
 });
@@ -139,7 +138,7 @@ export default function FeeCollectionPage() {
       cashier_id: cashierProfile?.id,
       amount: values.amount,
       payment_method: 'concession',
-      fee_type: `Concession for ${values.fee_type}`,
+      fee_type: 'Concession',
       notes: values.notes,
     };
     const { error } = await supabase.from("payments").insert([concessionData]);
@@ -148,7 +147,7 @@ export default function FeeCollectionPage() {
     } else {
       toast.success("Concession applied successfully!");
       await logActivity("Concession Applied", values);
-      concessionForm.reset({ amount: 0, notes: "", fee_type: "" });
+      concessionForm.reset({ amount: 0, notes: "" });
       await fetchStudentFinancials(student.id);
       setConcessionDialogOpen(false);
     }
@@ -257,14 +256,6 @@ export default function FeeCollectionPage() {
                         <DialogHeader><DialogTitle>Apply Concession</DialogTitle></DialogHeader>
                         <Form {...concessionForm}>
                           <form onSubmit={concessionForm.handleSubmit(onConcessionSubmit)} className="space-y-4">
-                            <FormField control={concessionForm.control} name="fee_type" render={({ field }) => (
-                              <FormItem><FormLabel>For Fee Type</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl><SelectTrigger><SelectValue placeholder="Select fee type..." /></SelectTrigger></FormControl>
-                                  <SelectContent>{feeItemsForCurrentYear.map(ft => <SelectItem key={ft.id} value={ft.name}>{ft.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                              <FormMessage /></FormItem>
-                            )} />
                             <FormField control={concessionForm.control} name="amount" render={({ field }) => (
                               <FormItem><FormLabel>Concession Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />

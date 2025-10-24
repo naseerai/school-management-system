@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { PlusCircle, Search, MoreHorizontal, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import Papa from "papaparse";
-import { Check, ChevronsUpDown, PlusCircle } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,349 +14,153 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { AcademicYear } from "../academic-years/page";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FeeStructureEditor } from "@/components/admin/fee-structure-editor";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-type StudentType = {
+type Student = {
   id: string;
+  roll_number: string;
   name: string;
+  class: string;
+  section: string;
+  student_types: { name: string } | null;
 };
 
-const studentFormSchema = z.object({
-  roll_number: z.string().min(1, "Roll number is required"),
-  name: z.string().min(1, "Name is required"),
-  class: z.string().min(1, "Class is required"),
-  section: z.string().min(1, "Section is required"),
-  email: z.string().email("Invalid email address").optional().or(z.literal('')),
-  phone: z.string().optional(),
-  student_type_id: z.string().min(1, "Student type is required"),
-  academic_year_id: z.string().min(1, "Academic year is required"),
-  studying_year: z.string().min(1, "Studying year is required"),
-  caste: z.string().optional(),
-  fee_details: z.any().optional(),
-});
-
-export default function StudentsPage() {
-  const [studentTypes, setStudentTypes] = useState<StudentType[]>([]);
-  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const form = useForm<z.infer<typeof studentFormSchema>>({
-    resolver: zodResolver(studentFormSchema),
-    defaultValues: {
-      roll_number: "",
-      name: "",
-      class: "",
-      section: "",
-      email: "",
-      phone: "",
-      student_type_id: "",
-      academic_year_id: "",
-      studying_year: "",
-      caste: "",
-      fee_details: {},
-    },
-  });
-
-  const fetchData = async () => {
-    const [typesRes, yearsRes] = await Promise.all([
-      supabase.from("student_types").select("*"),
-      supabase.from("academic_years").select("*").order("year_name", { ascending: false }),
-    ]);
-
-    if (typesRes.error) toast.error("Failed to fetch student types.");
-    else setStudentTypes(typesRes.data || []);
-
-    if (yearsRes.error) toast.error("Failed to fetch academic years.");
-    else setAcademicYears(yearsRes.data || []);
-  };
+export default function StudentListPage() {
+  const [students, setStudents] = useState<Student[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const fetchStudents = async () => {
+      setIsLoading(true);
+      let query = supabase
+        .from("students")
+        .select("id, roll_number, name, class, section, student_types(name)");
 
-  const onStudentSubmit = async (values: z.infer<typeof studentFormSchema>) => {
-    setIsSubmitting(true);
-    const { error } = await supabase.from("students").insert([values]);
-    if (error) {
-      toast.error(`Failed to add student: ${error.message}`);
-    } else {
-      toast.success("Student added successfully!");
-      form.reset();
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleDownloadSample = () => {
-    const csv = `"roll_number","name","class","section","email","phone","student_type","academic_year","studying_year","caste"\n"101","John Doe","10","A","john.doe@example.com","1234567890","Management","2024-2025","1st Year","General"`;
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "sample_students.csv");
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleBulkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsSubmitting(true);
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const rows = results.data as any[];
-        const studentTypesMap = new Map(studentTypes.map(st => [st.name.toLowerCase(), st.id]));
-        const academicYearsMap = new Map(academicYears.map(ay => [ay.year_name, ay.id]));
-        
-        const studentsToInsert = rows.map(row => ({
-          roll_number: row.roll_number,
-          name: row.name,
-          class: row.class,
-          section: row.section,
-          email: row.email,
-          phone: row.phone,
-          studying_year: row.studying_year,
-          caste: row.caste,
-          student_type_id: studentTypesMap.get(row.student_type?.toLowerCase()),
-          academic_year_id: academicYearsMap.get(row.academic_year),
-        })).filter(s => s.student_type_id && s.academic_year_id);
-
-        if (studentsToInsert.length !== rows.length) {
-            toast.warning("Some rows were skipped due to invalid student types or academic years.");
-        }
-        if (studentsToInsert.length === 0) {
-            toast.error("No valid students found in the CSV file. Please check student types and academic years.");
-            setIsSubmitting(false);
-            return;
-        }
-
-        const { error } = await supabase.from("students").insert(studentsToInsert);
-        if (error) {
-          toast.error(`Bulk upload failed: ${error.message}`);
-        } else {
-          toast.success(`${studentsToInsert.length} students uploaded successfully!`);
-        }
-        setIsSubmitting(false);
-      },
-      error: (error) => {
-        toast.error(`CSV parsing error: ${error.message}`);
-        setIsSubmitting(false);
+      if (searchTerm) {
+        query = query.or(`name.ilike.%${searchTerm}%,roll_number.ilike.%${searchTerm}%`);
       }
-    });
-  };
+      
+      query = query.order("created_at", { ascending: false }).limit(100);
+
+      const { data, error } = await query;
+
+      if (error) {
+        toast.error("Failed to fetch students.");
+      } else {
+        setStudents(data as Student[]);
+      }
+      setIsLoading(false);
+    };
+
+    const delayDebounceFn = setTimeout(() => {
+      fetchStudents();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Students</CardTitle>
-        <CardDescription>Add single students or bulk upload via CSV.</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Students</CardTitle>
+            <CardDescription>Manage student records.</CardDescription>
+          </div>
+          <Link href="/students/add">
+            <Button size="sm" className="gap-1">
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                Add Student
+              </span>
+            </Button>
+          </Link>
+        </div>
+        <div className="relative mt-4">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search by name or roll number..."
+            className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="single">
-          <TabsList>
-            <TabsTrigger value="single">Add Single Student</TabsTrigger>
-            <TabsTrigger value="bulk">Bulk Upload</TabsTrigger>
-          </TabsList>
-          <TabsContent value="single" className="pt-6">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onStudentSubmit)} className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <FormField control={form.control} name="roll_number" render={({ field }) => (
-                    <FormItem><FormLabel>Roll Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="name" render={({ field }) => (
-                    <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="phone" render={({ field }) => (
-                    <FormItem><FormLabel>Mobile Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="class" render={({ field }) => (
-                    <FormItem><FormLabel>Class</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="section" render={({ field }) => (
-                    <FormItem><FormLabel>Section</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="studying_year" render={({ field }) => (
-                    <FormItem><FormLabel>Studying Year</FormLabel><FormControl><Input placeholder="e.g., 1st Year" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="academic_year_id" render={({ field }) => (
-                    <FormItem><FormLabel>Academic Year</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select academic year..." /></SelectTrigger></FormControl>
-                        <SelectContent>{academicYears.map(ay => <SelectItem key={ay.id} value={ay.id}>{ay.year_name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    <FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="student_type_id" render={({ field }) => (
-                    <FormItem className="flex flex-col"><FormLabel>Student Type</FormLabel>
-                      <StudentTypeCombobox studentTypes={studentTypes} value={field.value} onChange={field.onChange} onNewTypeAdded={fetchData} />
-                    <FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="caste" render={({ field }) => (
-                    <FormItem><FormLabel>Caste</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                </div>
-                
-                <FormField
-                  control={form.control}
-                  name="fee_details"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <FeeStructureEditor value={field.value || {}} onChange={field.onChange} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex justify-end">
-                  <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Adding..." : "Add Student"}</Button>
-                </div>
-              </form>
-            </Form>
-          </TabsContent>
-          <TabsContent value="bulk" className="pt-6">
-            <div className="space-y-4 max-w-md">
-              <p className="text-sm text-muted-foreground">
-                Upload a CSV file with student data. Make sure the columns match the sample file.
-              </p>
-              <div className="flex gap-4">
-                <Button variant="outline" onClick={handleDownloadSample}>Download Sample</Button>
-                <Input id="csv-upload" type="file" accept=".csv" onChange={handleBulkUpload} disabled={isSubmitting} className="cursor-pointer" />
-              </div>
-              {isSubmitting && <p className="text-sm text-primary">Processing file...</p>}
-            </div>
-          </TabsContent>
-        </Tabs>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Roll Number</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Class</TableHead>
+              <TableHead>Student Type</TableHead>
+              <TableHead>
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : students.length > 0 ? (
+              students.map((student) => (
+                <TableRow key={student.id}>
+                  <TableCell className="font-medium">{student.roll_number}</TableCell>
+                  <TableCell>{student.name}</TableCell>
+                  <TableCell>{student.class}-{student.section}</TableCell>
+                  <TableCell>{student.student_types?.name || 'N/A'}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Toggle menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/students/${student.id}/edit`}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center">
+                  No students found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
-  );
-}
-
-function StudentTypeCombobox({ studentTypes, value, onChange, onNewTypeAdded }: { studentTypes: StudentType[], value: string, onChange: (value: string) => void, onNewTypeAdded: () => void }) {
-  const [open, setOpen] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [newTypeName, setNewTypeName] = useState("");
-  const [isAdding, setIsAdding] = useState(false);
-
-  const handleAddNewType = async () => {
-    const trimmedName = newTypeName.trim();
-    if (!trimmedName) return;
-    setIsAdding(true);
-
-    const { data: existingType } = await supabase.from("student_types").select("id").ilike("name", trimmedName).single();
-    if (existingType) {
-      toast.error(`Student type "${trimmedName}" already exists.`);
-      setIsAdding(false);
-      return;
-    }
-
-    const { data, error } = await supabase.from("student_types").insert({ name: trimmedName }).select().single();
-    if (error) {
-      toast.error(`Failed to add type: ${error.message}`);
-    } else {
-      toast.success("New student type added!");
-      onNewTypeAdded();
-      onChange(data.id);
-      setDialogOpen(false);
-      setNewTypeName("");
-    }
-    setIsAdding(false);
-  };
-
-  return (
-    <>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
-            {value ? studentTypes.find((st) => st.id === value)?.name : "Select student type..."}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-          <Command>
-            <CommandInput placeholder="Search student type..." />
-            <CommandList>
-              <CommandEmpty>No student type found.</CommandEmpty>
-              <CommandGroup>
-                {studentTypes.map((st) => (
-                  <CommandItem key={st.id} value={st.name} onSelect={() => { onChange(st.id); setOpen(false); }}>
-                    <Check className={cn("mr-2 h-4 w-4", value === st.id ? "opacity-100" : "opacity-0")} />
-                    {st.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup>
-                <CommandItem onSelect={() => { setOpen(false); setDialogOpen(true); }}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add New Type
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Student Type</DialogTitle>
-            <DialogDescription>Enter the name for the new student type.</DialogDescription>
-          </DialogHeader>
-          <Input value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="e.g., Day Scholar" />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddNewType} disabled={isAdding}>{isAdding ? "Adding..." : "Add Type"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
   );
 }
