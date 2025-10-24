@@ -201,6 +201,9 @@ export default function StudentsPage() {
                 if (feeItems.length > 0) fee_details[yearName] = feeItems;
             });
 
+            const student_type_id = row.student_type_id || studentTypesMap.get(row.student_type?.toLowerCase().trim());
+            const academic_year_id = row.academic_year_id || academicYearsMap.get(row.academic_year?.trim());
+
             return {
                 roll_number: row.roll_number || row.roll_no,
                 name: row.name,
@@ -210,8 +213,8 @@ export default function StudentsPage() {
                 phone: row.phone || row.mobile,
                 studying_year: row.studying_year,
                 caste: row.caste,
-                student_type_id: studentTypesMap.get(row.student_type?.toLowerCase().trim()),
-                academic_year_id: academicYearsMap.get(row.academic_year?.trim()),
+                student_type_id: student_type_id,
+                academic_year_id: academic_year_id,
                 fee_details,
             };
         }).filter(s => s.roll_number && s.name && s.student_type_id && s.academic_year_id);
