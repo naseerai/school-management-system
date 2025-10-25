@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Download } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
 
@@ -90,6 +90,7 @@ export default function ExpensesPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
@@ -140,12 +141,14 @@ export default function ExpensesPage() {
 
   const handleDelete = async () => {
     if (!expenseToDelete) return;
+    setIsDeleting(true);
     const { error } = await supabase.from("expenses").delete().eq("id", expenseToDelete.id);
     if (error) toast.error("Failed to delete expense.");
     else {
       toast.success("Expense deleted successfully!");
       fetchData();
     }
+    setIsDeleting(false);
     setDeleteAlertOpen(false);
   };
 
@@ -235,7 +238,10 @@ export default function ExpensesPage() {
                       )} />
                       <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Save"}</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          {isSubmitting ? "Saving..." : "Save"}
+                        </Button>
                       </DialogFooter>
                     </form>
                   </Form>
@@ -289,7 +295,10 @@ export default function ExpensesPage() {
           <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the expense record.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

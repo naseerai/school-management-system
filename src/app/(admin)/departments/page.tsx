@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { PlusCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,7 @@ export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
@@ -123,6 +124,7 @@ export default function DepartmentsPage() {
 
   const handleDelete = async () => {
     if (!departmentToDelete) return;
+    setIsDeleting(true);
     const { error } = await supabase.from("departments").delete().eq("id", departmentToDelete.id);
     if (error) {
       toast.error("Failed to delete department.");
@@ -130,6 +132,7 @@ export default function DepartmentsPage() {
       toast.success("Department deleted successfully!");
       fetchDepartments();
     }
+    setIsDeleting(false);
     setDeleteAlertOpen(false);
   };
 
@@ -173,7 +176,10 @@ export default function DepartmentsPage() {
                     )} />
                     <DialogFooter>
                       <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                      <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Save"}</Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isSubmitting ? "Saving..." : "Save"}
+                      </Button>
                     </DialogFooter>
                   </form>
                 </Form>
@@ -225,7 +231,10 @@ export default function DepartmentsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

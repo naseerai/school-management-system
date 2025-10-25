@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Sparkles } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -86,6 +86,7 @@ export default function CashiersPage() {
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCashier, setEditingCashier] = useState<Cashier | null>(null);
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
@@ -160,6 +161,7 @@ export default function CashiersPage() {
   const handleDelete = async () => {
     if (!cashierToDelete || !cashierToDelete.user_id) return;
     
+    setIsDeleting(true);
     const response = await fetch('/api/cashiers', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -174,6 +176,7 @@ export default function CashiersPage() {
       toast.success("Cashier deleted successfully!");
       fetchCashiers();
     }
+    setIsDeleting(false);
     setDeleteAlertOpen(false);
   };
 
@@ -249,7 +252,10 @@ export default function CashiersPage() {
                     )} />
                     <DialogFooter>
                       <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                      <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Save"}</Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isSubmitting ? "Saving..." : "Save"}
+                      </Button>
                     </DialogFooter>
                   </form>
                 </Form>
@@ -305,7 +311,10 @@ export default function CashiersPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

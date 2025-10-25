@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { PlusCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -78,6 +78,7 @@ export default function AcademicYearsPage() {
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingYear, setEditingYear] = useState<AcademicYear | null>(null);
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
@@ -142,6 +143,7 @@ export default function AcademicYearsPage() {
   const handleDelete = async () => {
     if (!yearToDelete) return;
     
+    setIsDeleting(true);
     const { error } = await supabase.from("academic_years").delete().eq("id", yearToDelete.id);
 
     if (error) {
@@ -150,6 +152,7 @@ export default function AcademicYearsPage() {
       toast.success("Academic year deleted successfully!");
       fetchAcademicYears();
     }
+    setIsDeleting(false);
     setDeleteAlertOpen(false);
     setYearToDelete(null);
   };
@@ -232,6 +235,7 @@ export default function AcademicYearsPage() {
                     <DialogFooter>
                       <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                       <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isSubmitting ? "Saving..." : "Save"}
                       </Button>
                     </DialogFooter>
@@ -320,8 +324,9 @@ export default function AcademicYearsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
