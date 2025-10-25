@@ -33,7 +33,8 @@ interface FeeStructureEditorProps {
 }
 
 export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps) {
-  const [yearDialogOpen, setYearDialogOpen] = useState(false);
+  const [yearDialogOpen, setYearDialogOpen]
+    = useState(false);
   const [newYearName, setNewYearName] = useState("");
 
   const handleAddYear = () => {
@@ -70,7 +71,7 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
           </div>
           <Dialog open={yearDialogOpen} onOpenChange={setYearDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1">
+              <Button type="button" size="sm" variant="outline" className="gap-1">
                 <PlusCircle className="h-4 w-4" /> Add Year
               </Button>
             </DialogTrigger>
@@ -81,8 +82,8 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
                 <Input id="year-name" value={newYearName} onChange={(e) => setNewYearName(e.target.value)} placeholder="e.g., 1st Year" />
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setYearDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleAddYear}>Add Year</Button>
+                <Button type="button" variant="outline" onClick={() => setYearDialogOpen(false)}>Cancel</Button>
+                <Button type="button" onClick={handleAddYear}>Add Year</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -153,7 +154,7 @@ function YearFeeCard({ year, fees, onDeleteYear, onFeeChange }: { year: string; 
     <div className="border rounded-lg">
       <div className="bg-muted/50 px-4 py-2 flex items-center justify-between">
         <h4 className="font-semibold">{year}</h4>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={onDeleteYear}>
+        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={onDeleteYear}>
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
@@ -177,8 +178,8 @@ function YearFeeCard({ year, fees, onDeleteYear, onFeeChange }: { year: string; 
                 <TableCell className="text-right font-medium">{(fee.amount - (fee.concession || 0)).toFixed(2)}</TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
-                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => openEditDialog(fee)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleDeleteFee(fee.id)}><Trash2 className="h-4 w-4" /></Button>
+                    <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => openEditDialog(fee)}><Pencil className="h-4 w-4" /></Button>
+                    <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => handleDeleteFee(fee.id)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -187,7 +188,7 @@ function YearFeeCard({ year, fees, onDeleteYear, onFeeChange }: { year: string; 
             )}
           </TableBody>
         </Table>
-        <Button variant="link" size="sm" className="mt-2 gap-1" onClick={openAddDialog}>
+        <Button type="button" variant="link" size="sm" className="mt-2 gap-1" onClick={openAddDialog}>
           <PlusCircle className="h-4 w-4" /> Add Fee Item
         </Button>
       </div>
@@ -209,8 +210,8 @@ function YearFeeCard({ year, fees, onDeleteYear, onFeeChange }: { year: string; 
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFeeDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveFee}>Save</Button>
+            <Button type="button" variant="outline" onClick={() => setFeeDialogOpen(false)}>Cancel</Button>
+            <Button type="button" onClick={handleSaveFee}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
