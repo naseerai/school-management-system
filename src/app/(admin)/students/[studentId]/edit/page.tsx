@@ -102,9 +102,18 @@ export default function EditStudentPage({ params }: { params: { studentId: strin
 
   const onStudentSubmit = async (values: z.infer<typeof studentFormSchema>) => {
     setIsSubmitting(true);
-    const { error } = await supabase.from("students").update(values).eq("id", studentId);
+    
+    const { data, error } = await supabase
+      .from("students")
+      .update(values)
+      .eq("id", studentId)
+      .select()
+      .single();
+
     if (error) {
       toast.error(`Failed to update student: ${error.message}`);
+    } else if (!data) {
+      toast.error("Update failed. The student record could not be found or was not updated.");
     } else {
       toast.success("Student updated successfully!");
       router.push("/students");
