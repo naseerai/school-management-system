@@ -305,7 +305,7 @@ export default function FeeCollectionPage() {
                     <AccordionItem value={summary.year} key={summary.year}>
                       <AccordionTrigger>
                         <div className="flex justify-between w-full pr-4">
-                          <span>{summary.year} ({summary.studentRecordForYear?.academic_years?.year_name})</span>
+                          <span>{summary.year}</span>
                           <Badge variant={summary.balance > 0 ? "destructive" : "default"}>
                             Balance: {summary.balance.toFixed(2)}
                           </Badge>
@@ -328,9 +328,10 @@ export default function FeeCollectionPage() {
                                 )) : <TableRow><TableCell colSpan={cashierProfile?.has_discount_permission ? 5 : 4} className="text-center">No fee structure defined for this year.</TableCell></TableRow>}
                               </TableBody>
                             </Table>
-                            <div className="grid grid-cols-3 gap-4 text-sm mt-4 border-t pt-4">
+                            <div className="grid grid-cols-4 gap-4 text-sm mt-4 border-t pt-4">
                                 <div><p className="font-medium">Yearly Due</p><p>{summary.totalDue.toFixed(2)}</p></div>
-                                <div><p className="font-medium">Yearly Paid</p><p>{summary.totalPaid.toFixed(2)}</p></div>
+                                <div><p className="font-medium text-orange-600">Yearly Concession</p><p className="text-orange-600">{summary.totalConcession.toFixed(2)}</p></div>
+                                <div><p className="font-medium text-green-600">Yearly Paid</p><p className="text-green-600">{summary.totalPaid.toFixed(2)}</p></div>
                                 <div><p className="font-medium">Yearly Balance</p><p>{summary.balance.toFixed(2)}</p></div>
                             </div>
                           </CardContent>
