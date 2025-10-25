@@ -48,6 +48,13 @@ type StudentDetails = {
 type Payment = {
   id: string; student_id: string; amount: number; fee_type: string; payment_method: string; created_at: string; notes: string | null;
 };
+type Invoice = {
+  id: string;
+  due_date: string;
+  status: 'paid' | 'unpaid';
+  total_amount: number;
+  batch_description: string;
+};
 type CashierProfile = {
   id: string;
   has_discount_permission: boolean;
@@ -113,6 +120,7 @@ export default function FeeCollectionPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [studentRecords, setStudentRecords] = useState<StudentDetails[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [cashierProfile, setCashierProfile] = useState<CashierProfile | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -150,10 +158,30 @@ export default function FeeCollectionPage() {
     else setPayments(data as Payment[] || []);
   };
 
+  const fetchStudentInvoices = async (studentIds: string[]) => {
+    if (studentIds.length === 0) {
+      setInvoices([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('id, due_date, status, total_amount, batch_description')
+      .in('student_id', studentIds)
+      .eq('status', 'unpaid')
+      .order('due_date', { ascending: true });
+    
+    if (error) {
+      toast.error("Failed to fetch outstanding invoices.");
+    } else {
+      setInvoices(data as Invoice[] || []);
+    }
+  };
+
   const onSearch = async (values: z.infer<typeof searchSchema>) => {
     setIsSearching(true);
     setStudentRecords([]);
     setPayments([]);
+    setInvoices([]);
     
     let query = supabase.from("students").select("*, student_types(name), academic_years(*)").eq("roll_number", values.roll_number);
     if (values.academic_year_id) {
@@ -167,7 +195,10 @@ export default function FeeCollectionPage() {
     } else {
       setStudentRecords(data as StudentDetails[]);
       const studentIds = data.map(s => s.id);
-      await fetchStudentFinancials(studentIds);
+      await Promise.all([
+        fetchStudentFinancials(studentIds),
+        fetchStudentInvoices(studentIds)
+      ]);
     }
     setIsSearching(false);
   };
@@ -287,6 +318,34 @@ export default function FeeCollectionPage() {
               <div><p className="font-medium">Student Type</p><p>{studentRecords[0].student_types?.name}</p></div>
             </CardContent>
           </Card>
+
+          {invoices.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Outstanding Invoices</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invoices.map(invoice => (
+                      <TableRow key={invoice.id}>
+                        <TableCell>{invoice.batch_description}</TableCell>
+                        <TableCell>{new Date(invoice.due_date).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right">{invoice.total_amount.toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">

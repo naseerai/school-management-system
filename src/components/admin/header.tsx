@@ -15,6 +15,7 @@ import {
   Settings,
   Search,
   History,
+  PanelRight,
 } from "lucide-react";
 import {
   Sheet,
@@ -58,7 +59,7 @@ const allNavItems = [
     { href: "/settings", icon: Settings, label: "Settings", roles: ['admin'] },
 ];
 
-export function Header({ userRole }: { userRole: 'admin' | 'cashier' }) {
+export function Header({ userRole, isSidebarExpanded, onToggleSidebar }: { userRole: 'admin' | 'cashier', isSidebarExpanded: boolean, onToggleSidebar: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   
@@ -108,6 +109,10 @@ export function Header({ userRole }: { userRole: 'admin' | 'cashier' }) {
           </nav>
         </SheetContent>
       </Sheet>
+      <Button size="icon" variant="outline" className="hidden sm:inline-flex" onClick={onToggleSidebar}>
+        {isSidebarExpanded ? <PanelLeft className="h-5 w-5" /> : <PanelRight className="h-5 w-5" />}
+        <span className="sr-only">Toggle Sidebar</span>
+      </Button>
       <Breadcrumb className="hidden md:flex">
         <BreadcrumbList>
           <BreadcrumbItem>

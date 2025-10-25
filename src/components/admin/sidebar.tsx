@@ -36,59 +36,95 @@ const allNavItems = [
   { href: "/fee-collection", icon: Receipt, label: "Fee Collection", roles: ['cashier'] },
 ];
 
-export function Sidebar({ userRole }: { userRole: 'admin' | 'cashier' }) {
+export function Sidebar({ userRole, isExpanded }: { userRole: 'admin' | 'cashier', isExpanded: boolean }) {
   const pathname = usePathname();
   const navItems = allNavItems.filter(item => item.roles.includes(userRole));
+  const settingsItem = { href: "/settings", icon: Settings, label: "Settings" };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
-      <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
-        <TooltipProvider>
-          <Link
-            href="/dashboard"
-            className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
-          >
-            <Package2 className="h-4 w-4 transition-all group-hover:scale-110" />
-            <span className="sr-only">Admin Portal</span>
+    <aside className={cn(
+      "fixed inset-y-0 left-0 z-10 hidden flex-col border-r bg-background sm:flex transition-all duration-300",
+      isExpanded ? "w-56" : "w-14"
+    )}>
+      <div className="flex h-full max-h-screen flex-col gap-2">
+        <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+          <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+            <Package2 className="h-6 w-6" />
+            {isExpanded && <span className="">Admin Portal</span>}
           </Link>
-          {navItems.map((item) => (
-            <Tooltip key={item.href}>
-              <TooltipTrigger asChild>
+        </div>
+        <div className="flex-1 overflow-auto">
+          <nav className={cn("grid items-start text-sm font-medium", isExpanded ? "px-2 py-4" : "px-2 flex flex-col items-center gap-4 py-4")}>
+            <TooltipProvider>
+              {navItems.map((item) => (
+                isExpanded ? (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
+                      pathname.startsWith(item.href) && "bg-muted text-primary"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                ) : (
+                  <Tooltip key={item.href} delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground",
+                          pathname.startsWith(item.href) && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        <item.icon className="h-5 w-5" />
+                        <span className="sr-only">{item.label}</span>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">{item.label}</TooltipContent>
+                  </Tooltip>
+                )
+              ))}
+            </TooltipProvider>
+          </nav>
+        </div>
+        <div className="mt-auto p-2 border-t">
+          <nav className={cn("grid items-start text-sm font-medium", isExpanded ? "" : "flex flex-col items-center gap-4 py-4")}>
+            <TooltipProvider>
+              {isExpanded ? (
                 <Link
-                  href={item.href}
+                  href={settingsItem.href}
                   className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
-                    pathname.startsWith(item.href) && "bg-accent text-accent-foreground"
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
+                    pathname.startsWith(settingsItem.href) && "bg-muted text-primary"
                   )}
                 >
-                  <item.icon className="h-5 w-5" />
-                  <span className="sr-only">{item.label}</span>
+                  <settingsItem.icon className="h-4 w-4" />
+                  {settingsItem.label}
                 </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right">{item.label}</TooltipContent>
-            </Tooltip>
-          ))}
-        </TooltipProvider>
-      </nav>
-      <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href="/settings"
-                className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
-                  pathname === "/settings" && "bg-accent text-accent-foreground"
-                )}
-              >
-                <Settings className="h-5 w-5" />
-                <span className="sr-only">Settings</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">Settings</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </nav>
+              ) : (
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href={settingsItem.href}
+                      className={cn(
+                        "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground",
+                        pathname.startsWith(settingsItem.href) && "bg-accent text-accent-foreground"
+                      )}
+                    >
+                      <settingsItem.icon className="h-5 w-5" />
+                      <span className="sr-only">{settingsItem.label}</span>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{settingsItem.label}</TooltipContent>
+                </Tooltip>
+              )}
+            </TooltipProvider>
+          </nav>
+        </div>
+      </div>
     </aside>
   );
 }
