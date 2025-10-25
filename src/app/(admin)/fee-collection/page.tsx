@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Fragment } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -39,11 +39,10 @@ const editConcessionSchema = z.object({
 
 // Types
 type FeeItem = { id: string; name: string; amount: number; concession: number };
-type FeeStructure = { [year: string]: FeeItem[] };
 type StudentDetails = {
   id: string; name: string; roll_number: string; class: string; section: string; studying_year: string;
   student_types: { name: string } | null;
-  fee_details: FeeStructure;
+  fee_details: { [year: string]: FeeItem[] };
   academic_years: AcademicYear | null;
 };
 type Payment = {
@@ -53,17 +52,60 @@ type CashierProfile = {
   id: string;
   has_discount_permission: boolean;
 };
+type YearlySummary = {
+    year: string;
+    feeItems: FeeItem[];
+    totalDue: number;
+    totalConcession: number;
+    totalPaid: number;
+    balance: number;
+    studentRecordForYear: StudentDetails | undefined;
+};
 
-const calculateYearlySummary = (studentRecord: StudentDetails, allPayments: Payment[]) => {
-    const feeItems = studentRecord.fee_details?.[studentRecord.studying_year] || [];
-    const yearPayments = allPayments.filter(p => p.student_id === studentRecord.id);
+// Calculation Logic
+const calculateFinancials = (studentRecords: StudentDetails[], allPayments: Payment[]) => {
+    if (studentRecords.length === 0) {
+        return { yearlySummaries: [], overallSummary: { totalDue: 0, totalConcession: 0, totalPaid: 0, balance: 0 } };
+    }
 
-    const totalDue = feeItems.reduce((sum, item) => sum + item.amount, 0);
-    const totalConcession = feeItems.reduce((sum, item) => sum + (item.concession || 0), 0);
-    const totalPaid = yearPayments.reduce((sum, pmt) => sum + pmt.amount, 0);
-    const balance = totalDue - totalConcession - totalPaid;
+    const masterFeeDetails = studentRecords[studentRecords.length - 1].fee_details || {};
+    const studentIdToYearMap = new Map(studentRecords.map(r => [r.id, r.studying_year]));
 
-    return { totalDue, totalConcession, totalPaid, balance, feeItems };
+    const paymentsByYear: { [year: string]: number } = {};
+    allPayments.forEach(p => {
+        const studyingYear = studentIdToYearMap.get(p.student_id);
+        if (studyingYear) {
+            paymentsByYear[studyingYear] = (paymentsByYear[studyingYear] || 0) + p.amount;
+        }
+    });
+
+    const yearlySummaries: YearlySummary[] = Object.entries(masterFeeDetails).map(([year, feeItems]) => {
+        const totalDue = feeItems.reduce((sum, item) => sum + item.amount, 0);
+        const totalConcession = feeItems.reduce((sum, item) => sum + (item.concession || 0), 0);
+        const totalPaid = paymentsByYear[year] || 0;
+        const balance = totalDue - totalConcession - totalPaid;
+        const studentRecordForYear = studentRecords.find(r => r.studying_year === year);
+
+        return { year, feeItems, totalDue, totalConcession, totalPaid, balance, studentRecordForYear };
+    });
+
+    const overallTotalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);
+    const { totalDue: overallTotalDue, totalConcession: overallTotalConcession } = yearlySummaries.reduce(
+        (acc, summary) => ({
+            totalDue: acc.totalDue + summary.totalDue,
+            totalConcession: acc.totalConcession + summary.totalConcession,
+        }),
+        { totalDue: 0, totalConcession: 0 }
+    );
+    
+    const overallSummary = {
+        totalDue: overallTotalDue,
+        totalConcession: overallTotalConcession,
+        totalPaid: overallTotalPaid,
+        balance: overallTotalDue - overallTotalConcession - overallTotalPaid,
+    };
+
+    return { yearlySummaries, overallSummary };
 };
 
 export default function FeeCollectionPage() {
@@ -199,21 +241,10 @@ export default function FeeCollectionPage() {
     setIsSubmitting(false);
   };
 
-  const overallSummary = useMemo(() => {
-    let totalDue = 0;
-    let totalConcession = 0;
-    
-    studentRecords.forEach(record => {
-        const feeItems = record.fee_details?.[record.studying_year] || [];
-        totalDue += feeItems.reduce((sum, item) => sum + item.amount, 0);
-        totalConcession += feeItems.reduce((sum, item) => sum + (item.concession || 0), 0);
-    });
-
-    const totalPaid = payments.reduce((sum, pmt) => sum + pmt.amount, 0);
-    const balance = totalDue - totalConcession - totalPaid;
-
-    return { totalDue, totalConcession, totalPaid, balance };
-  }, [studentRecords, payments]);
+  const { yearlySummaries, overallSummary } = useMemo(
+    () => calculateFinancials(studentRecords, payments),
+    [studentRecords, payments]
+  );
 
   const currentYearRecord = useMemo(() => studentRecords.find(r => r.academic_years?.is_active), [studentRecords]);
   const feeItemsForCurrentYear = useMemo(() => {
@@ -269,14 +300,12 @@ export default function FeeCollectionPage() {
                 </CardContent>
               </Card>
 
-              <Accordion type="single" collapsible className="w-full" defaultValue={`item-${studentRecords.length - 1}`}>
-                {studentRecords.map((record, index) => {
-                  const summary = calculateYearlySummary(record, payments);
-                  return (
-                    <AccordionItem value={`item-${index}`} key={record.id}>
+              <Accordion type="single" collapsible className="w-full" defaultValue={currentYearRecord?.studying_year}>
+                {yearlySummaries.map((summary) => (
+                    <AccordionItem value={summary.year} key={summary.year}>
                       <AccordionTrigger>
                         <div className="flex justify-between w-full pr-4">
-                          <span>{record.academic_years?.year_name} ({record.studying_year})</span>
+                          <span>{summary.year} ({summary.studentRecordForYear?.academic_years?.year_name})</span>
                           <Badge variant={summary.balance > 0 ? "destructive" : "default"}>
                             Balance: {summary.balance.toFixed(2)}
                           </Badge>
@@ -294,9 +323,9 @@ export default function FeeCollectionPage() {
                                     <TableCell>{item.amount.toFixed(2)}</TableCell>
                                     <TableCell>{(item.concession || 0).toFixed(2)}</TableCell>
                                     <TableCell className="text-right font-medium">{(item.amount - (item.concession || 0)).toFixed(2)}</TableCell>
-                                    {cashierProfile?.has_discount_permission && <TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => handleEditConcessionClick(item, record)}>Edit</Button></TableCell>}
+                                    {cashierProfile?.has_discount_permission && summary.studentRecordForYear && <TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => handleEditConcessionClick(item, summary.studentRecordForYear!)}>Edit</Button></TableCell>}
                                   </TableRow>
-                                )) : <TableRow><TableCell colSpan={cashierProfile?.has_discount_permission ? 5 : 4} className="text-center">No fee structure defined.</TableCell></TableRow>}
+                                )) : <TableRow><TableCell colSpan={cashierProfile?.has_discount_permission ? 5 : 4} className="text-center">No fee structure defined for this year.</TableCell></TableRow>}
                               </TableBody>
                             </Table>
                             <div className="grid grid-cols-3 gap-4 text-sm mt-4 border-t pt-4">
@@ -308,8 +337,7 @@ export default function FeeCollectionPage() {
                         </Card>
                       </AccordionContent>
                     </AccordionItem>
-                  )
-                })}
+                  ))}
               </Accordion>
             </div>
             <div className="space-y-6">
