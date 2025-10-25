@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { DataTablePagination } from "@/components/data-table-pagination";
 
 type InvoiceSummary = {
   batch_id: string;
@@ -34,9 +35,12 @@ type InvoiceSummary = {
   pending_students: number;
 };
 
+const PAGE_SIZE = 10;
+
 export default function InvoicesPage() {
   const [summaries, setSummaries] = useState<InvoiceSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const fetchSummaries = async () => {
@@ -52,6 +56,12 @@ export default function InvoicesPage() {
     };
     fetchSummaries();
   }, []);
+
+  const paginatedSummaries = summaries.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+  const totalPages = Math.ceil(summaries.length / PAGE_SIZE);
 
   return (
     <Card>
@@ -95,8 +105,8 @@ export default function InvoicesPage() {
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : summaries.length > 0 ? (
-              summaries.map((summary) => (
+            ) : paginatedSummaries.length > 0 ? (
+              paginatedSummaries.map((summary) => (
                 <TableRow key={summary.batch_id}>
                   <TableCell className="font-medium">
                     {summary.batch_description}
@@ -135,6 +145,11 @@ export default function InvoicesPage() {
             )}
           </TableBody>
         </Table>
+        <DataTablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </CardContent>
     </Card>
   );

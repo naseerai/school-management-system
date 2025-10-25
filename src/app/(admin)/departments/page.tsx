@@ -59,6 +59,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { DataTablePagination } from "@/components/data-table-pagination";
 
 type Department = {
   id: string;
@@ -70,6 +71,8 @@ const formSchema = z.object({
   name: z.string().min(1, "Department name is required"),
 });
 
+const PAGE_SIZE = 10;
+
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,30 +82,32 @@ export default function DepartmentsPage() {
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { name: "" },
-  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   const fetchDepartments = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    const from = (currentPage - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data, error, count } = await supabase
       .from("departments")
-      .select("*")
-      .order("created_at", { ascending: false });
+      .select("*", { count: 'exact' })
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) {
       toast.error("Failed to fetch departments.");
     } else {
       setDepartments(data || []);
+      setTotalCount(count || 0);
     }
     setIsLoading(false);
   };
 
   useEffect(() => {
     fetchDepartments();
-  }, []);
+  }, [currentPage]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
@@ -148,6 +153,8 @@ export default function DepartmentsPage() {
       form.reset({ name: "" });
     }
   }, [dialogOpen, form]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <>
@@ -221,6 +228,11 @@ export default function DepartmentsPage() {
               )}
             </TableBody>
           </Table>
+          <DataTablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
       <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>

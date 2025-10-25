@@ -61,6 +61,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { DataTablePagination } from "@/components/data-table-pagination";
 
 type Cashier = {
   id: string;
@@ -82,6 +83,8 @@ const formSchema = z.object({
     return true;
 });
 
+const PAGE_SIZE = 10;
+
 export default function CashiersPage() {
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,27 +94,31 @@ export default function CashiersPage() {
   const [editingCashier, setEditingCashier] = useState<Cashier | null>(null);
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [cashierToDelete, setCashierToDelete] = useState<Cashier | null>(null);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { name: "", email: "", phone: "", has_discount_permission: false, password: "" },
-  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   const fetchCashiers = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    const from = (currentPage - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data, error, count } = await supabase
       .from("cashiers")
-      .select("*")
-      .order("created_at", { ascending: false });
+      .select("*", { count: 'exact' })
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) toast.error("Failed to fetch cashiers.");
-    else setCashiers(data || []);
+    else {
+      setCashiers(data || []);
+      setTotalCount(count || 0);
+    }
     setIsLoading(false);
   };
 
   useEffect(() => {
     fetchCashiers();
-  }, []);
+  }, [currentPage]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
@@ -203,6 +210,8 @@ export default function CashiersPage() {
       form.reset({ name: "", email: "", phone: "", has_discount_permission: false, password: "" });
     }
   }, [dialogOpen, form]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <>
@@ -301,6 +310,11 @@ export default function CashiersPage() {
               )}
             </TableBody>
           </Table>
+          <DataTablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
       <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>

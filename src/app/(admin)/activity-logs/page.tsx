@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { DataTablePagination } from "@/components/data-table-pagination";
 
 type ActivityLog = {
   id: string;
@@ -28,28 +30,38 @@ type ActivityLog = {
   students: { name: string; roll_number: string } | null;
 };
 
+const PAGE_SIZE = 15;
+
 export default function ActivityLogsPage() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     const fetchLogs = async () => {
       setIsLoading(true);
-      const { data, error } = await supabase
+      const from = (currentPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data, error, count } = await supabase
         .from("activity_logs")
-        .select("*, cashiers(name), students(name, roll_number)")
+        .select("*, cashiers(name), students(name, roll_number)", { count: 'exact' })
         .order("timestamp", { ascending: false })
-        .limit(100);
+        .range(from, to);
 
       if (error) {
         toast.error("Failed to fetch activity logs.");
       } else {
         setLogs(data as ActivityLog[]);
+        setTotalCount(count || 0);
       }
       setIsLoading(false);
     };
     fetchLogs();
-  }, []);
+  }, [currentPage]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <Card>
@@ -99,6 +111,11 @@ export default function ActivityLogsPage() {
             )}
           </TableBody>
         </Table>
+        <DataTablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </CardContent>
     </Card>
   );

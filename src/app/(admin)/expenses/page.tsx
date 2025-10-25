@@ -67,6 +67,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { DataTablePagination } from "@/components/data-table-pagination";
 
 type Department = { id: string; name: string };
 type Expense = {
@@ -85,6 +86,8 @@ const formSchema = z.object({
   description: z.string().optional(),
 });
 
+const PAGE_SIZE = 10;
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -95,6 +98,8 @@ export default function ExpensesPage() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -103,13 +108,19 @@ export default function ExpensesPage() {
 
   const fetchData = async () => {
     setIsLoading(true);
+    const from = (currentPage - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     const [expensesRes, deptsRes] = await Promise.all([
-      supabase.from("expenses").select("*, departments(id, name)"),
+      supabase.from("expenses").select("*, departments(id, name)", { count: 'exact' }).range(from, to),
       supabase.from("departments").select("id, name"),
     ]);
 
     if (expensesRes.error) toast.error("Failed to fetch expenses.");
-    else setExpenses(expensesRes.data as Expense[] || []);
+    else {
+      setExpenses(expensesRes.data as Expense[] || []);
+      setTotalCount(expensesRes.count || 0);
+    }
 
     if (deptsRes.error) toast.error("Failed to fetch departments.");
     else setDepartments(deptsRes.data || []);
@@ -119,7 +130,7 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [currentPage]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
@@ -162,12 +173,13 @@ export default function ExpensesPage() {
     setDialogOpen(true);
   };
 
-  const handleDownload = () => {
-    if (expenses.length === 0) {
+  const handleDownload = async () => {
+    const { data: allExpenses, error } = await supabase.from("expenses").select("*, departments(name)");
+    if (error || !allExpenses || allExpenses.length === 0) {
       toast.info("No expenses to download.");
       return;
     }
-    const dataToExport = expenses.map(exp => ({
+    const dataToExport = allExpenses.map(exp => ({
       Date: exp.expense_date,
       Department: exp.departments?.name || 'N/A',
       Amount: exp.amount,
@@ -193,6 +205,8 @@ export default function ExpensesPage() {
       form.reset({ expense_date: new Date().toISOString().split('T')[0], amount: 0, description: "", department_id: "" });
     }
   }, [dialogOpen, form]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <>
@@ -288,6 +302,11 @@ export default function ExpensesPage() {
               )}
             </TableBody>
           </Table>
+          <DataTablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
       <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>

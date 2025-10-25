@@ -30,6 +30,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DataTablePagination } from "@/components/data-table-pagination";
 
 type Student = {
   id: string;
@@ -40,30 +41,38 @@ type Student = {
   student_types: { name: string } | null;
 };
 
+const PAGE_SIZE = 10;
+
 export default function StudentListPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     const fetchStudents = async () => {
       setIsLoading(true);
+      const from = (currentPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
       let query = supabase
         .from("students")
-        .select("id, roll_number, name, class, section, student_types(name)");
+        .select("id, roll_number, name, class, section, student_types(name)", { count: 'exact' });
 
       if (searchTerm) {
         query = query.or(`name.ilike.%${searchTerm}%,roll_number.ilike.%${searchTerm}%`);
       }
       
-      query = query.order("created_at", { ascending: false }).limit(100);
+      query = query.order("created_at", { ascending: false }).range(from, to);
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
 
       if (error) {
         toast.error("Failed to fetch students.");
       } else {
         setStudents(data as Student[]);
+        setTotalCount(count || 0);
       }
       setIsLoading(false);
     };
@@ -73,7 +82,9 @@ export default function StudentListPage() {
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm]);
+  }, [searchTerm, currentPage]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <Card>
@@ -99,7 +110,10 @@ export default function StudentListPage() {
             placeholder="Search by name or roll number..."
             className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1); // Reset to first page on search
+            }}
           />
         </div>
       </CardHeader>
@@ -160,6 +174,11 @@ export default function StudentListPage() {
             )}
           </TableBody>
         </Table>
+        <DataTablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </CardContent>
     </Card>
   );

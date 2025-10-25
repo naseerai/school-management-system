@@ -70,9 +70,9 @@ type YearlySummary = {
 };
 
 // Calculation Logic
-const calculateFinancials = (studentRecords: StudentDetails[], allPayments: Payment[]) => {
+const calculateFinancials = (studentRecords: StudentDetails[], allPayments: Payment[], allInvoices: Invoice[]) => {
     if (studentRecords.length === 0) {
-        return { yearlySummaries: [], overallSummary: { totalDue: 0, totalConcession: 0, totalPaid: 0, balance: 0 } };
+        return { yearlySummaries: [], overallSummary: { totalDue: 0, totalConcession: 0, totalPaid: 0, balance: 0, outstandingInvoiceTotal: 0 } };
     }
 
     const masterFeeDetails = studentRecords[studentRecords.length - 1].fee_details || {};
@@ -105,11 +105,15 @@ const calculateFinancials = (studentRecords: StudentDetails[], allPayments: Paym
         { totalDue: 0, totalConcession: 0 }
     );
     
+    const outstandingInvoiceTotal = allInvoices.reduce((sum, inv) => sum + inv.total_amount, 0);
+    const feeStructureBalance = overallTotalDue - overallTotalConcession - overallTotalPaid;
+    
     const overallSummary = {
         totalDue: overallTotalDue,
         totalConcession: overallTotalConcession,
         totalPaid: overallTotalPaid,
-        balance: overallTotalDue - overallTotalConcession - overallTotalPaid,
+        outstandingInvoiceTotal: outstandingInvoiceTotal,
+        balance: feeStructureBalance + outstandingInvoiceTotal,
     };
 
     return { yearlySummaries, overallSummary };
@@ -273,8 +277,8 @@ export default function FeeCollectionPage() {
   };
 
   const { yearlySummaries, overallSummary } = useMemo(
-    () => calculateFinancials(studentRecords, payments),
-    [studentRecords, payments]
+    () => calculateFinancials(studentRecords, payments, invoices),
+    [studentRecords, payments, invoices]
   );
 
   const currentYearRecord = useMemo(() => studentRecords.find(r => r.academic_years?.is_active), [studentRecords]);
@@ -351,10 +355,11 @@ export default function FeeCollectionPage() {
             <div className="lg:col-span-2 space-y-6">
               <Card>
                 <CardHeader><CardTitle>Overall Financial Summary</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                     <div><p className="font-medium">Total Due</p><p>{overallSummary.totalDue.toFixed(2)}</p></div>
                     <div><p className="font-medium text-orange-600">Total Concession</p><p className="text-orange-600">{overallSummary.totalConcession.toFixed(2)}</p></div>
                     <div><p className="font-medium text-green-600">Total Paid</p><p className="text-green-600">{overallSummary.totalPaid.toFixed(2)}</p></div>
+                    <div><p className="font-medium text-red-600">Outstanding Invoices</p><p className="text-red-600">{overallSummary.outstandingInvoiceTotal.toFixed(2)}</p></div>
                     <div><p className="font-bold text-base">Overall Balance</p><p className="font-bold text-base">{overallSummary.balance.toFixed(2)}</p></div>
                 </CardContent>
               </Card>
