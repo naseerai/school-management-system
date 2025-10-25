@@ -11,7 +11,6 @@ import {
   Building,
   TrendingUp,
   Calendar,
-  Settings,
   Package2,
   History,
 } from "lucide-react";
@@ -39,7 +38,6 @@ const allNavItems = [
 export function Sidebar({ userRole, isExpanded }: { userRole: 'admin' | 'cashier', isExpanded: boolean }) {
   const pathname = usePathname();
   const navItems = allNavItems.filter(item => item.roles.includes(userRole));
-  const settingsItem = { href: "/settings", icon: Settings, label: "Settings" };
 
   return (
     <aside className={cn(
@@ -53,8 +51,8 @@ export function Sidebar({ userRole, isExpanded }: { userRole: 'admin' | 'cashier
             {isExpanded && <span className="">Admin Portal</span>}
           </Link>
         </div>
-        <div className="flex-1 overflow-auto">
-          <nav className={cn("grid items-start text-sm font-medium", isExpanded ? "px-2 py-4" : "px-2 flex flex-col items-center gap-4 py-4")}>
+        <div className="flex-1 overflow-auto py-2">
+          <nav className={cn("grid items-start text-sm font-medium", isExpanded ? "px-2" : "px-2 flex flex-col items-center gap-2")}>
             <TooltipProvider>
               {navItems.map((item) => (
                 isExpanded ? (
@@ -87,40 +85,6 @@ export function Sidebar({ userRole, isExpanded }: { userRole: 'admin' | 'cashier
                   </Tooltip>
                 )
               ))}
-            </TooltipProvider>
-          </nav>
-        </div>
-        <div className="mt-auto p-2 border-t">
-          <nav className={cn("grid items-start text-sm font-medium", isExpanded ? "" : "flex flex-col items-center gap-4 py-4")}>
-            <TooltipProvider>
-              {isExpanded ? (
-                <Link
-                  href={settingsItem.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                    pathname.startsWith(settingsItem.href) && "bg-muted text-primary"
-                  )}
-                >
-                  <settingsItem.icon className="h-4 w-4" />
-                  {settingsItem.label}
-                </Link>
-              ) : (
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <Link
-                      href={settingsItem.href}
-                      className={cn(
-                        "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground",
-                        pathname.startsWith(settingsItem.href) && "bg-accent text-accent-foreground"
-                      )}
-                    >
-                      <settingsItem.icon className="h-5 w-5" />
-                      <span className="sr-only">{settingsItem.label}</span>
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">{settingsItem.label}</TooltipContent>
-                </Tooltip>
-              )}
             </TooltipProvider>
           </nav>
         </div>

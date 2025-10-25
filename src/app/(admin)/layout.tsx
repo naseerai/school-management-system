@@ -15,6 +15,7 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [userRole, setUserRole] = useState<'admin' | 'cashier' | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
 
@@ -28,17 +29,20 @@ export default function AdminLayout({
 
       const { data: cashierProfile } = await supabase
         .from('cashiers')
-        .select('password_change_required')
+        .select('password_change_required, name')
         .eq('user_id', session.user.id)
         .single();
 
       let role: 'admin' | 'cashier' = 'admin';
       if (cashierProfile) {
         role = 'cashier';
+        setUserName(cashierProfile.name);
         if (cashierProfile.password_change_required && pathname !== '/change-password') {
           router.push('/change-password');
           return;
         }
+      } else {
+        setUserName(session.user.email || 'Admin');
       }
       
       setUserRole(role);
@@ -99,7 +103,7 @@ export default function AdminLayout({
         "flex flex-col sm:gap-4 sm:py-4 transition-all duration-300",
         isSidebarExpanded ? "sm:pl-56" : "sm:pl-14"
       )}>
-        <Header userRole={userRole} isSidebarExpanded={isSidebarExpanded} onToggleSidebar={() => setIsSidebarExpanded(prev => !prev)} />
+        <Header userName={userName} userRole={userRole} isSidebarExpanded={isSidebarExpanded} onToggleSidebar={() => setIsSidebarExpanded(prev => !prev)} />
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
           {children}
         </main>
