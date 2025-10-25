@@ -149,6 +149,8 @@ export default function InvoicesPage() {
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
+          totalCount={summaries.length}
+          pageSize={PAGE_SIZE}
         />
       </CardContent>
     </Card>

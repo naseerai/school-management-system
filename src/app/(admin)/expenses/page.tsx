@@ -306,6 +306,8 @@ export default function ExpensesPage() {
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
+            totalCount={totalCount}
+            pageSize={PAGE_SIZE}
           />
         </CardContent>
       </Card>

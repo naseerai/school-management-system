@@ -232,6 +232,8 @@ export default function DepartmentsPage() {
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
+            totalCount={totalCount}
+            pageSize={PAGE_SIZE}
           />
         </CardContent>
       </Card>

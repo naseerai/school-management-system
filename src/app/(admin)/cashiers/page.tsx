@@ -314,6 +314,8 @@ export default function CashiersPage() {
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
+            totalCount={totalCount}
+            pageSize={PAGE_SIZE}
           />
         </CardContent>
       </Card>

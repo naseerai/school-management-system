@@ -178,6 +178,8 @@ export default function StudentListPage() {
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
+          totalCount={totalCount}
+          pageSize={PAGE_SIZE}
         />
       </CardContent>
     </Card>
