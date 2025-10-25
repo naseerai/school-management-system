@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -40,16 +40,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@/components/ui/command";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { AcademicYear } from "../../academic-years/page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FeeStructureEditor } from "@/components/admin/fee-structure-editor";
@@ -71,7 +62,7 @@ const studentFormSchema = z.object({
 });
 
 export default function EditStudentPage({ params }: { params: { studentId: string } }) {
-  const { studentId } = use(params);
+  const { studentId } = params;
 
   const [studentTypes, setStudentTypes] = useState<StudentType[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
