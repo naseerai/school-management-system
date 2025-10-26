@@ -46,9 +46,11 @@ interface FeeSummaryTableProps {
   data: FeeSummaryTableData | null;
   onPay: (feeType: string) => void;
   onCollectOther: () => void;
+  hasDiscountPermission: boolean;
+  onEditConcession: (feeType: string) => void;
 }
 
-export function FeeSummaryTable({ data, onPay, onCollectOther }: FeeSummaryTableProps) {
+export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermission, onEditConcession }: FeeSummaryTableProps) {
   if (!data) return null;
 
   const { years, feeTypes, cellData, yearlyTotals, overallTotals } = data;
@@ -105,7 +107,12 @@ export function FeeSummaryTable({ data, onPay, onCollectOther }: FeeSummaryTable
                     })()}
                   </TableCell>
                   <TableCell className="text-center border-l">
-                    <Button size="sm" variant="outline" onClick={() => onPay(feeType)}>Pay</Button>
+                    <div className="flex items-center justify-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => onPay(feeType)}>Pay</Button>
+                        {hasDiscountPermission && (
+                            <Button size="sm" variant="secondary" onClick={() => onEditConcession(feeType)}>Concession</Button>
+                        )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
