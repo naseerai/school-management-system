@@ -168,43 +168,22 @@ export default function StudentsPage() {
       skipEmptyLines: true,
       complete: async (results) => {
         const rows = results.data as any[];
-        const studentTypesMap = new Map(studentTypes.map(st => [st.name.toLowerCase(), st.id]));
-        const academicYearsMap = new Map(academicYears.map(ay => [ay.year_name, ay.id]));
+        const studentTypesMap = new Map(studentTypes.map(st => [st.name.toLowerCase().trim(), st.id]));
+        const academicYearsMap = new Map(academicYears.map(ay => [ay.year_name.trim(), ay.id]));
         
         const yearPrefixes = ['first', 'second', 'third', 'fourth', 'fifth'];
         const yearMappings: { [key: string]: string } = {
             first: '1st Year', second: '2nd Year', third: '3rd Year', fourth: '4th Year', fifth: '5th Year',
         };
 
-        const studentsToUpsert = rows.map(row => {
-            const fee_details: FeeStructure = {};
-            yearPrefixes.forEach(prefix => {
-                const yearName = yearMappings[prefix];
-                const feeItems: FeeItem[] = [];
+        const studentsToUpsert: any[] = [];
+        const skippedRows: { row: number; reason: string }[] = [];
 
-                const tuitionFee = parseFloat(row[`${prefix}_year_tuition_fee`]);
-                const jvdFee = parseFloat(row[`${prefix}_year_jvd_fee`]);
-                const concession = parseFloat(row[`${prefix}_year_concession`]);
-
-                if (!isNaN(tuitionFee)) {
-                    feeItems.push({
-                        id: crypto.randomUUID(), name: 'Tuition Fee',
-                        amount: tuitionFee, concession: !isNaN(concession) ? concession : 0,
-                    });
-                }
-                if (!isNaN(jvdFee)) {
-                    feeItems.push({
-                        id: crypto.randomUUID(), name: 'JVD Fee',
-                        amount: jvdFee, concession: 0,
-                    });
-                }
-                if (feeItems.length > 0) fee_details[yearName] = feeItems;
-            });
-
+        rows.forEach((row, index) => {
             const student_type_id = studentTypesMap.get(row.student_type?.toLowerCase().trim());
             const academic_year_id = academicYearsMap.get(row.academic_year?.trim());
 
-            return {
+            const studentData = {
                 roll_number: row.roll_number || row.roll_no,
                 name: row.name,
                 class: row.class || row.class_id,
@@ -215,15 +194,56 @@ export default function StudentsPage() {
                 caste: row.caste,
                 student_type_id: student_type_id,
                 academic_year_id: academic_year_id,
-                fee_details,
             };
-        }).filter(s => s.roll_number && s.name && s.student_type_id && s.academic_year_id);
 
-        if (studentsToUpsert.length !== rows.length) {
-            toast.warning(`Skipped ${rows.length - studentsToUpsert.length} rows due to missing or invalid data (e.g., student type, academic year).`, { id: toastId });
+            const reasons = [];
+            if (!studentData.roll_number) reasons.push("Missing roll number");
+            if (!studentData.name) reasons.push("Missing name");
+            if (!studentData.student_type_id) reasons.push(`Student Type '${row.student_type}' not found`);
+            if (!studentData.academic_year_id) reasons.push(`Academic Year '${row.academic_year}' not found`);
+
+            if (reasons.length > 0) {
+                skippedRows.push({ row: index + 2, reason: reasons.join(', ') });
+                return;
+            }
+
+            const fee_details: FeeStructure = {};
+            yearPrefixes.forEach(prefix => {
+                const yearName = yearMappings[prefix];
+                const feeItems: FeeItem[] = [];
+
+                const tuitionFee = parseFloat(row[`${prefix}_year_tuition_fee`]);
+                const jvdFee = parseFloat(row[`${prefix}_year_jvd_fee`]);
+                const concession = parseFloat(row[`${prefix}_year_concession`]);
+
+                if (!isNaN(tuitionFee)) {
+                    feeItems.push({ id: crypto.randomUUID(), name: 'Tuition Fee', amount: tuitionFee, concession: !isNaN(concession) ? concession : 0 });
+                }
+                if (!isNaN(jvdFee)) {
+                    feeItems.push({ id: crypto.randomUUID(), name: 'JVD Fee', amount: jvdFee, concession: 0 });
+                }
+                if (feeItems.length > 0) fee_details[yearName] = feeItems;
+            });
+
+            studentsToUpsert.push({ ...studentData, fee_details });
+        });
+
+        if (skippedRows.length > 0) {
+            const skippedRowsDescription = skippedRows.slice(0, 5).map(skipped => `Row ${skipped.row}: ${skipped.reason}`).join('\n');
+            const fullDescription = `Skipped ${skippedRows.length} of ${rows.length} rows.\n\nErrors:\n${skippedRowsDescription}${skippedRows.length > 5 ? '\n...' : ''}`;
+            
+            toast.warning("Some rows were skipped during upload.", {
+                description: <pre className="mt-2 w-full rounded-md bg-muted p-4 text-muted-foreground"><code className="text-sm">{fullDescription}</code></pre>,
+                duration: 15000,
+            });
         }
+
         if (studentsToUpsert.length === 0) {
-            toast.error("No valid students found in the CSV file to process.", { id: toastId });
+            if (skippedRows.length === 0) {
+                toast.error("No valid students found in the CSV file to process.", { id: toastId });
+            } else {
+                toast.dismiss(toastId);
+            }
             setIsSubmitting(false);
             return;
         }
@@ -238,7 +258,7 @@ export default function StudentsPage() {
           toast.success(`${studentsToUpsert.length} students uploaded/updated successfully!`, { id: toastId });
         }
         setIsSubmitting(false);
-        (event.target as HTMLInputElement).value = ""; // Reset file input
+        (event.target as HTMLInputElement).value = "";
       },
       error: (error) => {
         toast.error(`CSV parsing error: ${error.message}`, { id: toastId });
