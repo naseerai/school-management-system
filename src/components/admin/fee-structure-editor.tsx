@@ -12,8 +12,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Trash2, Pencil } from "lucide-react";
+import { PlusCircle, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -33,9 +44,13 @@ interface FeeStructureEditorProps {
 }
 
 export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps) {
-  const [yearDialogOpen, setYearDialogOpen]
-    = useState(false);
+  const [yearDialogOpen, setYearDialogOpen] = useState(false);
   const [newYearName, setNewYearName] = useState("");
+  const [feeTypeDialogOpen, setFeeTypeDialogOpen] = useState(false);
+  const [newFeeTypeName, setNewFeeTypeName] = useState("");
+
+  const years = Object.keys(value).sort();
+  const feeTypes = Array.from(new Set(Object.values(value).flat().map(item => item.name))).sort();
 
   const handleAddYear = () => {
     const trimmedYear = newYearName.trim();
@@ -47,18 +62,66 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
       toast.error(`Year "${trimmedYear}" already exists.`);
       return;
     }
-    onChange({ ...value, [trimmedYear]: [] });
+    const newValue = { ...value };
+    newValue[trimmedYear] = feeTypes.map(feeType => ({
+      id: crypto.randomUUID(),
+      name: feeType,
+      amount: 0,
+      concession: 0,
+    }));
+    onChange(newValue);
     setNewYearName("");
     setYearDialogOpen(false);
   };
 
-  const handleDeleteYear = (year: string) => {
-    const { [year]: _, ...rest } = value;
+  const handleAddFeeType = () => {
+    const trimmedFeeType = newFeeTypeName.trim();
+    if (!trimmedFeeType) {
+      toast.error("Fee type name cannot be empty.");
+      return;
+    }
+    if (feeTypes.includes(trimmedFeeType)) {
+      toast.error(`Fee type "${trimmedFeeType}" already exists.`);
+      return;
+    }
+    const newValue = { ...value };
+    Object.keys(newValue).forEach(year => {
+      newValue[year].push({
+        id: crypto.randomUUID(),
+        name: trimmedFeeType,
+        amount: 0,
+        concession: 0,
+      });
+    });
+    onChange(newValue);
+    setNewFeeTypeName("");
+    setFeeTypeDialogOpen(false);
+  };
+
+  const handleDeleteYear = (yearToDelete: string) => {
+    const { [yearToDelete]: _, ...rest } = value;
     onChange(rest);
   };
 
-  const handleFeeChange = (year: string, updatedFees: FeeItem[]) => {
-    onChange({ ...value, [year]: updatedFees });
+  const handleDeleteFeeType = (feeTypeToDelete: string) => {
+    const newValue = { ...value };
+    Object.keys(newValue).forEach(year => {
+      newValue[year] = newValue[year].filter(item => item.name !== feeTypeToDelete);
+    });
+    onChange(newValue);
+  };
+
+  const handleInputChange = (year: string, feeTypeName: string, field: 'amount' | 'concession', newAmount: string) => {
+    const newValue = JSON.parse(JSON.stringify(value));
+    const feeItem = newValue[year]?.find((item: FeeItem) => item.name === feeTypeName);
+    if (feeItem) {
+      feeItem[field] = parseFloat(newAmount) || 0;
+      onChange(newValue);
+    }
+  };
+
+  const getFeeItem = (year: string, feeType: string): FeeItem | undefined => {
+    return value[year]?.find(item => item.name === feeType);
   };
 
   return (
@@ -69,152 +132,136 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
             <CardTitle>Fee Structure</CardTitle>
             <CardDescription>Define the fee structure for each academic year of the student's course.</CardDescription>
           </div>
-          <Dialog open={yearDialogOpen} onOpenChange={setYearDialogOpen}>
-            <DialogTrigger asChild>
-              <Button type="button" size="sm" variant="outline" className="gap-1">
-                <PlusCircle className="h-4 w-4" /> Add Year
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Add New Year</DialogTitle></DialogHeader>
-              <div className="space-y-2">
-                <Label htmlFor="year-name">Year Name</Label>
-                <Input id="year-name" value={newYearName} onChange={(e) => setNewYearName(e.target.value)} placeholder="e.g., 1st Year" />
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setYearDialogOpen(false)}>Cancel</Button>
-                <Button type="button" onClick={handleAddYear}>Add Year</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            <Dialog open={yearDialogOpen} onOpenChange={setYearDialogOpen}>
+              <DialogTrigger asChild>
+                <Button type="button" size="sm" variant="outline" className="gap-1">
+                  <PlusCircle className="h-4 w-4" /> Add Year
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Add New Year</DialogTitle></DialogHeader>
+                <div className="space-y-2">
+                  <Label htmlFor="year-name">Year Name</Label>
+                  <Input id="year-name" value={newYearName} onChange={(e) => setNewYearName(e.target.value)} placeholder="e.g., 1st Year" />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setYearDialogOpen(false)}>Cancel</Button>
+                  <Button type="button" onClick={handleAddYear}>Add Year</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={feeTypeDialogOpen} onOpenChange={setFeeTypeDialogOpen}>
+              <DialogTrigger asChild>
+                <Button type="button" size="sm" variant="outline" className="gap-1">
+                  <PlusCircle className="h-4 w-4" /> Add Fee Type
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Add New Fee Type</DialogTitle></DialogHeader>
+                <div className="space-y-2">
+                  <Label htmlFor="fee-type-name">Fee Type Name</Label>
+                  <Input id="fee-type-name" value={newFeeTypeName} onChange={(e) => setNewFeeTypeName(e.target.value)} placeholder="e.g., Tuition Fee" />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setFeeTypeDialogOpen(false)}>Cancel</Button>
+                  <Button type="button" onClick={handleAddFeeType}>Add Fee Type</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {Object.keys(value).length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">No years added. Click "Add Year" to start.</p>
+      <CardContent>
+        {years.length === 0 && feeTypes.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No fee structure defined. Start by adding a year or a fee type.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table className="min-w-full border">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="sticky left-0 z-10 bg-background border-r min-w-[200px]">Fee Type</TableHead>
+                  {years.map(year => (
+                    <TableHead key={year} className="text-center border-l min-w-[250px]">
+                      <div className="flex items-center justify-center gap-2">
+                        {year}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Delete "{year}"?</AlertDialogTitle><AlertDialogDescription>This will remove the entire year and its fee details. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteYear(year)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {feeTypes.map(feeType => (
+                  <TableRow key={feeType}>
+                    <TableCell className="font-medium sticky left-0 z-10 bg-background border-r">
+                      <div className="flex items-center justify-between">
+                        {feeType}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Delete "{feeType}"?</AlertDialogTitle><AlertDialogDescription>This will remove this fee type from all years. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteFeeType(feeType)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                    {years.map(year => {
+                      const item = getFeeItem(year, feeType);
+                      return (
+                        <TableCell key={year} className="border-l">
+                          <div className="flex gap-2">
+                            <div className="space-y-1">
+                              <Label htmlFor={`${year}-${feeType}-amount`} className="text-xs">Amount</Label>
+                              <Input
+                                id={`${year}-${feeType}-amount`}
+                                type="number"
+                                value={item?.amount || 0}
+                                onChange={(e) => handleInputChange(year, feeType, 'amount', e.target.value)}
+                                className="h-8"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor={`${year}-${feeType}-concession`} className="text-xs">Concession</Label>
+                              <Input
+                                id={`${year}-${feeType}-concession`}
+                                type="number"
+                                value={item?.concession || 0}
+                                onChange={(e) => handleInputChange(year, feeType, 'concession', e.target.value)}
+                                className="h-8"
+                              />
+                            </div>
+                          </div>
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
-        {Object.entries(value).map(([year, fees]) => (
-          <YearFeeCard
-            key={year}
-            year={year}
-            fees={fees}
-            onDeleteYear={() => handleDeleteYear(year)}
-            onFeeChange={(updatedFees) => handleFeeChange(year, updatedFees)}
-          />
-        ))}
       </CardContent>
     </Card>
-  );
-}
-
-function YearFeeCard({ year, fees, onDeleteYear, onFeeChange }: { year: string; fees: FeeItem[]; onDeleteYear: () => void; onFeeChange: (fees: FeeItem[]) => void; }) {
-  const [feeDialogOpen, setFeeDialogOpen] = useState(false);
-  const [editingFee, setEditingFee] = useState<FeeItem | null>(null);
-  const [feeName, setFeeName] = useState("");
-  const [feeAmount, setFeeAmount] = useState("");
-  const [feeConcession, setFeeConcession] = useState("");
-
-  const openAddDialog = () => {
-    setEditingFee(null);
-    setFeeName("");
-    setFeeAmount("");
-    setFeeConcession("0");
-    setFeeDialogOpen(true);
-  };
-
-  const openEditDialog = (fee: FeeItem) => {
-    setEditingFee(fee);
-    setFeeName(fee.name);
-    setFeeAmount(String(fee.amount));
-    setFeeConcession(String(fee.concession || 0));
-    setFeeDialogOpen(true);
-  };
-
-  const handleSaveFee = () => {
-    const amount = parseFloat(feeAmount);
-    const concession = parseFloat(feeConcession) || 0;
-    if (!feeName.trim() || isNaN(amount) || amount < 0) {
-      toast.error("Please enter a valid fee name and a non-negative amount.");
-      return;
-    }
-
-    if (editingFee) {
-      onFeeChange(fees.map(f => f.id === editingFee.id ? { ...f, name: feeName, amount, concession } : f));
-    } else {
-      onFeeChange([...fees, { id: crypto.randomUUID(), name: feeName, amount, concession }]);
-    }
-    setFeeDialogOpen(false);
-  };
-
-  const handleDeleteFee = (id: string) => {
-    onFeeChange(fees.filter(f => f.id !== id));
-  };
-
-  return (
-    <div className="border rounded-lg">
-      <div className="bg-muted/50 px-4 py-2 flex items-center justify-between">
-        <h4 className="font-semibold">{year}</h4>
-        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={onDeleteYear}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-      <div className="p-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Fee Type</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Concession</TableHead>
-              <TableHead className="text-right">Payable</TableHead>
-              <TableHead className="w-[100px]"><span className="sr-only">Actions</span></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {fees.length > 0 ? fees.map(fee => (
-              <TableRow key={fee.id}>
-                <TableCell>{fee.name}</TableCell>
-                <TableCell>{fee.amount.toFixed(2)}</TableCell>
-                <TableCell>{(fee.concession || 0).toFixed(2)}</TableCell>
-                <TableCell className="text-right font-medium">{(fee.amount - (fee.concession || 0)).toFixed(2)}</TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-end gap-2">
-                    <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => openEditDialog(fee)}><Pencil className="h-4 w-4" /></Button>
-                    <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => handleDeleteFee(fee.id)}><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )) : (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No fees added for this year.</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
-        <Button type="button" variant="link" size="sm" className="mt-2 gap-1" onClick={openAddDialog}>
-          <PlusCircle className="h-4 w-4" /> Add Fee Item
-        </Button>
-      </div>
-      <Dialog open={feeDialogOpen} onOpenChange={setFeeDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editingFee ? "Edit" : "Add"} Fee Item</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="fee-name">Fee Name</Label>
-              <Input id="fee-name" value={feeName} onChange={(e) => setFeeName(e.target.value)} placeholder="e.g., Tuition Fee" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fee-amount">Amount</Label>
-              <Input id="fee-amount" type="number" value={feeAmount} onChange={(e) => setFeeAmount(e.target.value)} placeholder="e.g., 50000" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fee-concession">Concession</Label>
-              <Input id="fee-concession" type="number" value={feeConcession} onChange={(e) => setFeeConcession(e.target.value)} placeholder="e.g., 5000" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setFeeDialogOpen(false)}>Cancel</Button>
-            <Button type="button" onClick={handleSaveFee}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
   );
 }
