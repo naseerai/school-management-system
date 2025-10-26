@@ -505,7 +505,7 @@ export default function FeeCollectionPage() {
                                 <div><p className="font-medium">Yearly Due</p><p>{summary.totalDue.toFixed(2)}</p></div>
                                 <div><p className="font-medium text-orange-600">Yearly Concession</p><p className="text-orange-600">{summary.totalConcession.toFixed(2)}</p></div>
                                 <div><p className="font-medium text-green-600">Yearly Paid</p><p className="text-green-600">{summary.totalPaid.toFixed(2)}</p></div>
-                                <div><p className="font-medium">Yearly Balance</p><p className="text-bold">{summary.balance.toFixed(2)}</p></div>
+                                <div><p className="font-medium">Yearly Balance</p><p className="font-bold">{summary.balance.toFixed(2)}</p></div>
                             </div>
                           </CardContent>
                         </Card>
@@ -587,7 +587,8 @@ export default function FeeCollectionPage() {
                         )} />
                         <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? "Processing..." : "Collect Payment"}</Button>
                       </form>
-                    </fieldset>
+                    </Form>
+                  </fieldset>
                 </CardContent>
               </Card>
               <Card>
@@ -631,7 +632,7 @@ export default function FeeCollectionPage() {
               <div className="space-y-2 text-sm">
                 <p><strong>Description:</strong> {invoiceToPay?.batch_description}</p>
                 <p><strong>Total Amount:</strong> {invoiceToPay?.total_amount.toFixed(2)}</p>
-                <p><strong>Remaining Balance:</strong> {(invoiceToPay?.total_amount || 0) - (invoiceToPay?.paid_amount || 0)}</p>
+                <p><strong>Remaining Balance:</strong> {((invoiceToPay?.total_amount || 0) - (invoiceToPay?.paid_amount || 0)).toFixed(2)}</p>
               </div>
               <Form {...invoicePaymentForm}>
                 <form onSubmit={invoicePaymentForm.handleSubmit(onInvoicePaymentSubmit)} className="space-y-4">
