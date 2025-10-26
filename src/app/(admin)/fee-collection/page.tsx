@@ -230,8 +230,8 @@ export default function FeeCollectionPage() {
   const onPaymentSubmit = async (values: z.infer<typeof paymentSchema>) => {
     const studentRecordForPayment = studentRecords.find(r => r.studying_year === values.payment_year) || studentRecords[studentRecords.length - 1];
     
-    if (!studentRecordForPayment || !sessionUser || !cashierProfile || !cashierProfile.id) {
-      toast.error("Cannot process payment: Cashier session is invalid. Please refresh the page or log in again.");
+    if (!studentRecordForPayment || !sessionUser || !cashierProfile) {
+      toast.error("Cannot process payment: Student or Cashier profile not found. Please search for the student again or re-login.");
       return;
     }
 
@@ -247,7 +247,7 @@ export default function FeeCollectionPage() {
         notes: values.notes,
         fee_type: feeTypeForDb,
         student_id: studentRecordForPayment.id,
-        cashier_id: cashierProfile.id
+        cashier_id: sessionUser.id,
     };
 
     const { error } = await supabase.from("payments").insert([paymentData]);
@@ -350,7 +350,7 @@ export default function FeeCollectionPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader><CardTitle>Student Fee Collection</CardTitle><CardDescription>Search for a student to collect fees.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Student Fee Collection</CardTitle><CardDescription>Search for a student to collect fees.</CardDescription></CardDescription></CardHeader>
         <CardContent>
           <fieldset disabled={isInitializing}>
             <Form {...searchForm}>
