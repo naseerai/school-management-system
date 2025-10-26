@@ -46,13 +46,13 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const allNavItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['admin'] },
-    { href: "/students", icon: Users, label: "Students", roles: ['admin', 'cashier'] },
+    { href: "/students", icon: Users, label: "Students", roles: ['admin'] },
     { href: "/fees", icon: Receipt, label: "Fee Structure", roles: ['admin'] },
     { href: "/invoices", icon: FileText, label: "Invoices", roles: ['admin'] },
     { href: "/cashiers", icon: UserCircle, label: "Cashiers", roles: ['admin'] },
     { href: "/departments", icon: Building, label: "Departments", roles: ['admin'] },
     { href: "/expenses", icon: TrendingUp, label: "Expenses", roles: ['admin'] },
-    { href: "/academic-years", icon: Calendar, label: "Academic Years", roles: ['admin', 'cashier'] },
+    { href: "/academic-years", icon: Calendar, label: "Academic Years", roles: ['admin'] },
     { href: "/activity-logs", icon: History, label: "Activity Logs", roles: ['admin'] },
     { href: "/fee-collection", icon: Receipt, label: "Fee Collection", roles: ['cashier'] },
     { href: "/settings", icon: Settings, label: "Settings", roles: ['admin'] },
@@ -75,7 +75,7 @@ export function Header({ userName, userRole, isSidebarExpanded, onToggleSidebar 
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 print:hidden">
       <Sheet>
         <SheetTrigger asChild>
           <Button size="icon" variant="outline" className="sm:hidden">

@@ -37,6 +37,7 @@ import {
 
 type FeeStructure = { id: string; fee_name: string; amount: number };
 type StudentType = { id: string; name: string };
+type ClassGroup = { id: string; name: string };
 
 const formSchema = z.object({
   fee_structure_id: z.string().min(1, "Please select a fee type"),
@@ -50,6 +51,7 @@ const formSchema = z.object({
 export default function GenerateInvoicesPage() {
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
   const [studentTypes, setStudentTypes] = useState<StudentType[]>([]);
+  const [classGroups, setClassGroups] = useState<ClassGroup[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -59,14 +61,17 @@ export default function GenerateInvoicesPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [feesRes, typesRes] = await Promise.all([
+      const [feesRes, typesRes, groupsRes] = await Promise.all([
         supabase.from("fee_structures").select("id, fee_name, amount"),
         supabase.from("student_types").select("id, name"),
+        supabase.from("class_groups").select("id, name"),
       ]);
       if (feesRes.error) toast.error("Failed to fetch fee types.");
       else setFeeStructures(feesRes.data || []);
       if (typesRes.error) toast.error("Failed to fetch student types.");
       else setStudentTypes(typesRes.data || []);
+      if (groupsRes.error) toast.error("Failed to fetch class groups.");
+      else setClassGroups(groupsRes.data || []);
     };
     fetchData();
   }, []);
@@ -180,7 +185,12 @@ export default function GenerateInvoicesPage() {
               <FormItem><FormLabel>Due Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="class_filter" render={({ field }) => (
-              <FormItem><FormLabel>Class</FormLabel><FormControl><Input placeholder="e.g., 10" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Class</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Select class..." /></SelectTrigger></FormControl>
+                  <SelectContent>{classGroups.map(cg => <SelectItem key={cg.id} value={cg.name}>{cg.name}</SelectItem>)}</SelectContent>
+                </Select>
+              <FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="section_filter" render={({ field }) => (
               <FormItem><FormLabel>Section</FormLabel><FormControl><Input placeholder="e.g., A" {...field} /></FormControl><FormMessage /></FormItem>

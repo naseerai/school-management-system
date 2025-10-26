@@ -24,13 +24,13 @@ import {
 
 const allNavItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['admin'] },
-  { href: "/students", icon: Users, label: "Students", roles: ['admin', 'cashier'] },
+  { href: "/students", icon: Users, label: "Students", roles: ['admin'] },
   { href: "/fees", icon: Receipt, label: "Fee Structure", roles: ['admin'] },
   { href: "/invoices", icon: FileText, label: "Invoices", roles: ['admin'] },
   { href: "/cashiers", icon: UserCircle, label: "Cashiers", roles: ['admin'] },
   { href: "/departments", icon: Building, label: "Departments", roles: ['admin'] },
   { href: "/expenses", icon: TrendingUp, label: "Expenses", roles: ['admin'] },
-  { href: "/academic-years", icon: Calendar, label: "Academic Years", roles: ['admin', 'cashier'] },
+  { href: "/academic-years", icon: Calendar, label: "Academic Years", roles: ['admin'] },
   { href: "/activity-logs", icon: History, label: "Activity Logs", roles: ['admin'] },
   { href: "/fee-collection", icon: Receipt, label: "Fee Collection", roles: ['cashier'] },
 ];
@@ -41,7 +41,7 @@ export function Sidebar({ userRole, isExpanded }: { userRole: 'admin' | 'cashier
 
   return (
     <aside className={cn(
-      "fixed inset-y-0 left-0 z-10 hidden flex-col border-r bg-background sm:flex transition-all duration-300",
+      "fixed inset-y-0 left-0 z-10 hidden flex-col border-r bg-background sm:flex transition-all duration-300 print:hidden",
       isExpanded ? "w-56" : "w-14"
     )}>
       <div className="flex h-full max-h-screen flex-col gap-2">

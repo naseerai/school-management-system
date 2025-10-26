@@ -97,6 +97,11 @@ export default function CashiersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { name: "", email: "", phone: "", has_discount_permission: false, password: "" },
+  });
+
   const fetchCashiers = async () => {
     setIsLoading(true);
     const from = (currentPage - 1) * PAGE_SIZE;
@@ -209,7 +214,7 @@ export default function CashiersPage() {
       setEditingCashier(null);
       form.reset({ name: "", email: "", phone: "", has_discount_permission: false, password: "" });
     }
-  }, [dialogOpen, form]);
+  }, [dialogOpen]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 

@@ -174,29 +174,60 @@ export default function ExpensesPage() {
   };
 
   const handleDownload = async () => {
-    const { data: allExpenses, error } = await supabase.from("expenses").select("*, departments(name)");
-    if (error || !allExpenses || allExpenses.length === 0) {
-      toast.info("No expenses to download.");
+    const today = new Date();
+    const startDate = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+    const endDate = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+    const [paymentsRes, expensesRes] = await Promise.all([
+      supabase.from("payments")
+        .select("created_at, amount, fee_type, students(name, roll_number)")
+        .gte('created_at', startDate)
+        .lte('created_at', endDate),
+      supabase.from("expenses")
+        .select("expense_date, amount, description, departments(name)")
+        .eq('expense_date', new Date().toISOString().split('T')[0])
+    ]);
+
+    if (paymentsRes.error || expensesRes.error) {
+      toast.error("Failed to fetch daily sheet data.");
       return;
     }
-    const dataToExport = allExpenses.map(exp => ({
-      Date: exp.expense_date,
-      Department: exp.departments?.name || 'N/A',
-      Amount: exp.amount,
-      Description: exp.description || '',
+
+    const paymentsData = (paymentsRes.data || []).map((p: any) => ({
+      Time: new Date(p.created_at).toLocaleTimeString(),
+      Type: 'Payment',
+      Description: p.fee_type,
+      'Student/Department': `${p.students?.name} (${p.students?.roll_number})`,
+      Amount: p.amount,
     }));
-    const csv = Papa.unparse(dataToExport);
+
+    const expensesData = (expensesRes.data || []).map((e: any) => ({
+      Time: '',
+      Type: 'Expense',
+      Description: e.description || '',
+      'Student/Department': e.departments?.name || 'N/A',
+      Amount: -e.amount,
+    }));
+
+    const combinedData = [...paymentsData, ...expensesData];
+
+    if (combinedData.length === 0) {
+      toast.info("No payments or expenses recorded today to download.");
+      return;
+    }
+
+    const csv = Papa.unparse(combinedData);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    const today = new Date().toISOString().split('T')[0];
-    link.setAttribute("download", `expenses_${today}.csv`);
+    const todayStr = new Date().toISOString().split('T')[0];
+    link.setAttribute("download", `daily_sheet_${todayStr}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Expense sheet downloaded.");
+    toast.success("Daily sheet downloaded.");
   };
 
   useEffect(() => {

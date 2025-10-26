@@ -67,11 +67,13 @@ export default function AdminLayout({
     if (userRole) {
       const adminOnlyPages = [
         '/dashboard', 
+        '/students',
         '/fees', 
         '/invoices', 
         '/cashiers', 
         '/departments', 
         '/expenses', 
+        '/academic-years',
         '/activity-logs',
         '/settings'
       ];
@@ -100,8 +102,8 @@ export default function AdminLayout({
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <Sidebar userRole={userRole} isExpanded={isSidebarExpanded} />
       <div className={cn(
-        "flex flex-col sm:gap-4 sm:py-4 transition-all duration-300",
-        isSidebarExpanded ? "sm:pl-56" : "sm:pl-14"
+        "flex flex-col sm:gap-4 sm:py-4 transition-all duration-300 print:p-0",
+        isSidebarExpanded ? "sm:pl-56 print:!pl-0" : "sm:pl-14 print:!pl-0"
       )}>
         <Header userName={userName} userRole={userRole} isSidebarExpanded={isSidebarExpanded} onToggleSidebar={() => setIsSidebarExpanded(prev => !prev)} />
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">

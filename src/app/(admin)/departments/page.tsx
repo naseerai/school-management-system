@@ -85,6 +85,11 @@ export default function DepartmentsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { name: "" },
+  });
+
   const fetchDepartments = async () => {
     setIsLoading(true);
     const from = (currentPage - 1) * PAGE_SIZE;
@@ -152,7 +157,7 @@ export default function DepartmentsPage() {
       setEditingDepartment(null);
       form.reset({ name: "" });
     }
-  }, [dialogOpen, form]);
+  }, [dialogOpen]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 

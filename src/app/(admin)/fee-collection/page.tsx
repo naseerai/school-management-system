@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
+import { Print } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -289,7 +290,7 @@ export default function FeeCollectionPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="print:hidden">
         <CardHeader><CardTitle>Student Fee Collection</CardTitle><CardDescription>Search for a student to collect fees.</CardDescription></CardHeader>
         <CardContent>
           <Form {...searchForm}>
@@ -313,6 +314,12 @@ export default function FeeCollectionPage() {
 
       {studentRecords.length > 0 && (
         <>
+          <div className="hidden print:block text-center mb-4">
+            <h1 className="text-xl font-bold">Payment Receipt</h1>
+            <p>Student: {studentRecords[0].name} ({studentRecords[0].roll_number})</p>
+            <p>Date: {new Date().toLocaleDateString()}</p>
+          </div>
+
           <Card>
             <CardHeader><CardTitle>Student Details</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -324,7 +331,7 @@ export default function FeeCollectionPage() {
           </Card>
 
           {invoices.length > 0 && (
-            <Card>
+            <Card className="print:hidden">
               <CardHeader>
                 <CardTitle>Outstanding Invoices</CardTitle>
               </CardHeader>
@@ -352,7 +359,7 @@ export default function FeeCollectionPage() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-6 print:hidden">
               <Card>
                 <CardHeader><CardTitle>Overall Financial Summary</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
@@ -406,42 +413,46 @@ export default function FeeCollectionPage() {
               </Accordion>
             </div>
             <div className="space-y-6">
-              {currentYearRecord && (
-                <Card>
-                  <CardHeader><CardTitle>Collect Payment for {currentYearRecord.academic_years?.year_name}</CardTitle></CardHeader>
-                  <CardContent>
-                    <Form {...paymentForm}>
-                      <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
-                        <FormField control={paymentForm.control} name="fee_type" render={({ field }) => (
-                          <FormItem><FormLabel>Fee Type</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl><SelectTrigger><SelectValue placeholder="Select fee type..." /></SelectTrigger></FormControl>
-                              <SelectContent>{feeItemsForCurrentYear.map(ft => <SelectItem key={ft.id} value={ft.name}>{ft.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                          <FormMessage /></FormItem>
-                        )} />
-                        <FormField control={paymentForm.control} name="amount" render={({ field }) => (
-                          <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={paymentForm.control} name="payment_method" render={({ field }) => (
-                          <FormItem><FormLabel>Payment Method</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                              <SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem></SelectContent>
-                            </Select>
-                          <FormMessage /></FormItem>
-                        )} />
-                        <FormField control={paymentForm.control} name="notes" render={({ field }) => (
-                          <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? "Processing..." : "Collect Payment"}</Button>
-                      </form>
-                    </Form>
-                  </CardContent>
-                </Card>
-              )}
+              <Card className="print:hidden">
+                <CardHeader><CardTitle>Collect Payment for {currentYearRecord?.academic_years?.year_name}</CardTitle></CardHeader>
+                <CardContent>
+                  <Form {...paymentForm}>
+                    <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
+                      <FormField control={paymentForm.control} name="fee_type" render={({ field }) => (
+                        <FormItem><FormLabel>Fee Type</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Select fee type..." /></SelectTrigger></FormControl>
+                            <SelectContent>{feeItemsForCurrentYear.map(ft => <SelectItem key={ft.id} value={ft.name}>{ft.name}</SelectItem>)}</SelectContent>
+                          </Select>
+                        <FormMessage /></FormItem>
+                      )} />
+                      <FormField control={paymentForm.control} name="amount" render={({ field }) => (
+                        <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={paymentForm.control} name="payment_method" render={({ field }) => (
+                        <FormItem><FormLabel>Payment Method</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem></SelectContent>
+                          </Select>
+                        <FormMessage /></FormItem>
+                      )} />
+                      <FormField control={paymentForm.control} name="notes" render={({ field }) => (
+                        <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? "Processing..." : "Collect Payment"}</Button>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
               <Card>
-                <CardHeader><CardTitle>Overall Payment History</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Overall Payment History</CardTitle>
+                  <Button variant="outline" size="icon" onClick={() => window.print()} className="print:hidden">
+                    <Print className="h-4 w-4" />
+                    <span className="sr-only">Print</span>
+                  </Button>
+                </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
@@ -459,7 +470,7 @@ export default function FeeCollectionPage() {
               </Card>
             </div>
           </div>
-          <Dialog open={editConcessionDialogOpen} onOpenChange={setEditConcessionDialogOpen}>
+          <Dialog open={editConcessionDialogOpen} onOpenChange={setEditConcessionDialogOpen} className="print:hidden">
             <DialogContent>
                 <DialogHeader><DialogTitle>Edit Concession for {concessionContext?.fee.name}</DialogTitle></DialogHeader>
                 <Form {...editConcessionForm}>
