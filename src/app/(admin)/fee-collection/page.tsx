@@ -14,11 +14,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { AcademicYear } from "@/types";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { FeeSummaryTable, FeeSummaryTableData } from "@/components/fee-collection/FeeSummaryTable";
 
 // Schemas
 const searchSchema = z.object({
@@ -67,69 +66,6 @@ type Invoice = {
 type CashierProfile = {
   id: string;
   has_discount_permission: boolean;
-};
-type YearlySummary = {
-    year: string;
-    feeItems: FeeItem[];
-    totalDue: number;
-    totalConcession: number;
-    totalPaid: number;
-    balance: number;
-    studentRecordForYear: StudentDetails | undefined;
-};
-
-// Calculation Logic
-const calculateFinancials = (studentRecords: StudentDetails[], allPayments: Payment[], invoices: Invoice[]) => {
-    if (studentRecords.length === 0) {
-        return { 
-            yearlySummaries: [], 
-            overallSummary: { totalDue: 0, totalConcession: 0, totalPaid: 0, balance: 0, outstandingInvoiceTotal: 0 } 
-        };
-    }
-
-    const masterFeeDetails = studentRecords[studentRecords.length - 1].fee_details || {};
-    
-    const paymentsByFeeType: { [type: string]: number } = {};
-    allPayments.forEach(p => {
-        paymentsByFeeType[p.fee_type] = (paymentsByFeeType[p.fee_type] || 0) + p.amount;
-    });
-
-    const yearlySummaries: YearlySummary[] = Object.entries(masterFeeDetails).map(([year, feeItems]) => {
-        const totalDue = feeItems.reduce((sum, item) => sum + item.amount, 0);
-        const totalConcession = feeItems.reduce((sum, item) => sum + (item.concession || 0), 0);
-        
-        const totalPaidForYear = feeItems.reduce((sum, item) => {
-            const feeTypeString = `${year} - ${item.name}`;
-            return sum + (paymentsByFeeType[feeTypeString] || 0);
-        }, 0);
-
-        const balance = totalDue - totalConcession - totalPaidForYear;
-        const studentRecordForYear = studentRecords.find(r => r.studying_year === year);
-
-        return { year, feeItems, totalDue, totalConcession, totalPaid: totalPaidForYear, balance, studentRecordForYear };
-    });
-
-    const outstandingInvoiceTotal = invoices.reduce((sum, inv) => sum + (inv.total_amount - (inv.paid_amount || 0)), 0);
-    const overallTotalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);
-    const { totalDue: feeStructureTotalDue, totalConcession: overallTotalConcession } = yearlySummaries.reduce(
-        (acc, summary) => ({
-            totalDue: acc.totalDue + summary.totalDue,
-            totalConcession: acc.totalConcession + summary.totalConcession,
-        }),
-        { totalDue: 0, totalConcession: 0 }
-    );
-    
-    const overallTotalDue = feeStructureTotalDue + invoices.reduce((sum, inv) => sum + inv.total_amount, 0);
-
-    const overallSummary = {
-        totalDue: overallTotalDue,
-        totalConcession: overallTotalConcession,
-        totalPaid: overallTotalPaid,
-        outstandingInvoiceTotal: outstandingInvoiceTotal,
-        balance: overallTotalDue - overallTotalConcession - overallTotalPaid,
-    };
-
-    return { yearlySummaries, overallSummary };
 };
 
 export default function FeeCollectionPage() {
@@ -280,12 +216,6 @@ export default function FeeCollectionPage() {
     setIsSubmitting(false);
   };
 
-  const handleEditConcessionClick = (feeItem: FeeItem, studentRecord: StudentDetails) => {
-    setConcessionContext({ fee: feeItem, studentRecord });
-    editConcessionForm.setValue('amount', feeItem.concession || 0);
-    setEditConcessionDialogOpen(true);
-  };
-
   const onEditConcessionSubmit = async (values: z.infer<typeof editConcessionSchema>) => {
     if (!concessionContext) return;
     const { fee, studentRecord } = concessionContext;
@@ -371,10 +301,60 @@ export default function FeeCollectionPage() {
     setIsSubmitting(false);
   };
 
-  const { yearlySummaries, overallSummary } = useMemo(
-    () => calculateFinancials(studentRecords, payments, invoices),
-    [studentRecords, payments, invoices]
-  );
+  const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
+    if (studentRecords.length === 0) return null;
+
+    const masterFeeDetails = studentRecords[studentRecords.length - 1].fee_details || {};
+    const years = Object.keys(masterFeeDetails).sort();
+    const allFeeTypeNames = new Set<string>();
+    Object.values(masterFeeDetails).forEach(items => {
+        items.forEach(item => allFeeTypeNames.add(item.name));
+    });
+    const feeTypes = Array.from(allFeeTypeNames).sort();
+
+    const paymentsByFeeType: { [type: string]: number } = {};
+    payments.forEach(p => {
+        paymentsByFeeType[p.fee_type] = (paymentsByFeeType[p.fee_type] || 0) + p.amount;
+    });
+
+    const cellData: FeeSummaryTableData['cellData'] = {};
+    const yearlyTotals: FeeSummaryTableData['yearlyTotals'] = {};
+
+    years.forEach(year => {
+        cellData[year] = {};
+        yearlyTotals[year] = { total: 0, paid: 0, pending: 0, concession: 0 };
+        const feeItemsForYear = masterFeeDetails[year] || [];
+
+        feeTypes.forEach(feeType => {
+            const feeItem = feeItemsForYear.find(item => item.name === feeType);
+            if (feeItem) {
+                const total = feeItem.amount;
+                const concession = feeItem.concession || 0;
+                const paid = paymentsByFeeType[`${year} - ${feeType}`] || 0;
+                const pending = Math.max(0, total - concession - paid);
+
+                cellData[year][feeType] = { total, paid, pending };
+
+                yearlyTotals[year].total += total;
+                yearlyTotals[year].paid += paid;
+                yearlyTotals[year].concession += concession;
+            } else {
+                cellData[year][feeType] = { total: 0, paid: 0, pending: 0 };
+            }
+        });
+        yearlyTotals[year].pending = Math.max(0, yearlyTotals[year].total - yearlyTotals[year].concession - yearlyTotals[year].paid);
+    });
+
+    const overallTotals: FeeSummaryTableData['overallTotals'] = { total: 0, paid: 0, pending: 0, concession: 0 };
+    Object.values(yearlyTotals).forEach(yearTotal => {
+        overallTotals.total += yearTotal.total;
+        overallTotals.paid += yearTotal.paid;
+        overallTotals.concession += yearTotal.concession;
+    });
+    overallTotals.pending = Math.max(0, overallTotals.total - overallTotals.concession - overallTotals.paid);
+
+    return { years, feeTypes, cellData, yearlyTotals, overallTotals };
+  }, [studentRecords, payments]);
 
   const currentYearRecord = useMemo(() => studentRecords.find(r => r.academic_years?.is_active), [studentRecords]);
   
@@ -462,57 +442,7 @@ export default function FeeCollectionPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader><CardTitle>Overall Financial Summary</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                    <div><p className="font-medium">Total Due</p><p>{overallSummary.totalDue.toFixed(2)}</p></div>
-                    <div><p className="font-medium text-orange-600">Total Concession</p><p className="text-orange-600">{overallSummary.totalConcession.toFixed(2)}</p></div>
-                    <div><p className="font-medium text-green-600">Total Paid</p><p className="text-green-600">{overallSummary.totalPaid.toFixed(2)}</p></div>
-                    <div><p className="font-medium text-red-600">Outstanding Invoices</p><p className="text-red-600">{overallSummary.outstandingInvoiceTotal.toFixed(2)}</p></div>
-                    <div><p className="font-bold text-base">Overall Balance</p><p className="font-bold text-base">{overallSummary.balance.toFixed(2)}</p></div>
-                </CardContent>
-              </Card>
-
-              <Accordion type="single" collapsible className="w-full" defaultValue={currentYearRecord?.studying_year}>
-                {yearlySummaries.map((summary) => (
-                    <AccordionItem value={summary.year} key={summary.year}>
-                      <AccordionTrigger>
-                        <div className="flex justify-between w-full pr-4">
-                          <span>{summary.year}</span>
-                          <Badge variant={summary.balance > 0 ? "destructive" : "default"}>
-                            Balance: {summary.balance.toFixed(2)}
-                          </Badge>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <Card className="border-none shadow-none">
-                          <CardContent className="pt-4">
-                            <Table>
-                              <TableHeader><TableRow><TableHead>Fee Type</TableHead><TableHead>Amount</TableHead><TableHead>Concession</TableHead><TableHead className="text-right">Payable</TableHead>{cashierProfile?.has_discount_permission && <TableHead className="text-right">Actions</TableHead>}</TableRow></TableHeader>
-                              <TableBody>
-                                {summary.feeItems.length > 0 ? summary.feeItems.map(item => (
-                                  <TableRow key={item.id}>
-                                    <TableCell>{item.name}</TableCell>
-                                    <TableCell>{item.amount.toFixed(2)}</TableCell>
-                                    <TableCell>{(item.concession || 0).toFixed(2)}</TableCell>
-                                    <TableCell className="text-right font-medium">{(item.amount - (item.concession || 0)).toFixed(2)}</TableCell>
-                                    {cashierProfile?.has_discount_permission && summary.studentRecordForYear && <TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => handleEditConcessionClick(item, summary.studentRecordForYear!)}>Edit</Button></TableCell>}
-                                  </TableRow>
-                                )) : <TableRow><TableCell colSpan={cashierProfile?.has_discount_permission ? 5 : 4} className="text-center">No fee structure defined for this year.</TableCell></TableRow>}
-                              </TableBody>
-                            </Table>
-                            <div className="grid grid-cols-4 gap-4 text-sm mt-4 border-t pt-4">
-                                <div><p className="font-medium">Yearly Due</p><p>{summary.totalDue.toFixed(2)}</p></div>
-                                <div><p className="font-medium text-orange-600">Yearly Concession</p><p className="text-orange-600">{summary.totalConcession.toFixed(2)}</p></div>
-                                <div><p className="font-medium text-green-600">Yearly Paid</p><p className="text-green-600">{summary.totalPaid.toFixed(2)}</p></div>
-                                <div><p className="font-medium">Yearly Balance</p><p className="font-bold">{summary.balance.toFixed(2)}</p></div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-              </Accordion>
+              <FeeSummaryTable data={feeSummaryData} />
             </div>
             <div className="space-y-6">
               {invoices.length > 0 && (
