@@ -28,9 +28,13 @@ const searchSchema = z.object({
 
 const paymentSchema = z.object({
   fee_type: z.string().min(1, "Fee type is required"),
+  other_fee_description: z.string().optional(),
   amount: z.coerce.number().min(1, "Amount must be greater than 0"),
   payment_method: z.enum(["cash", "upi"]),
   notes: z.string().optional(),
+}).refine(data => !(data.fee_type === 'Other' && !data.other_fee_description?.trim()), {
+    message: "Description is required for 'Other' fee type.",
+    path: ["other_fee_description"],
 });
 
 const editConcessionSchema = z.object({
@@ -132,8 +136,10 @@ export default function FeeCollectionPage() {
   const [concessionContext, setConcessionContext] = useState<{ fee: FeeItem; studentRecord: StudentDetails } | null>(null);
 
   const searchForm = useForm<z.infer<typeof searchSchema>>({ resolver: zodResolver(searchSchema), defaultValues: { academic_year_id: "", roll_number: "" } });
-  const paymentForm = useForm<z.infer<typeof paymentSchema>>({ resolver: zodResolver(paymentSchema), defaultValues: { amount: 0, payment_method: "cash", notes: "" } });
+  const paymentForm = useForm<z.infer<typeof paymentSchema>>({ resolver: zodResolver(paymentSchema), defaultValues: { amount: 0, payment_method: "cash", notes: "", fee_type: "", other_fee_description: "" } });
   const editConcessionForm = useForm<z.infer<typeof editConcessionSchema>>({ resolver: zodResolver(editConcessionSchema), defaultValues: { amount: 0 } });
+  
+  const watchedFeeType = paymentForm.watch("fee_type");
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -230,13 +236,23 @@ export default function FeeCollectionPage() {
       return;
     }
     setIsSubmitting(true);
-    const { error } = await supabase.from("payments").insert([{ ...values, student_id: currentYearRecord.id, cashier_id: cashierProfile?.id }]);
+    const feeTypeToRecord = values.fee_type === 'Other' ? values.other_fee_description : values.fee_type;
+    
+    const { error } = await supabase.from("payments").insert([{ 
+        student_id: currentYearRecord.id, 
+        cashier_id: cashierProfile?.id,
+        amount: values.amount,
+        payment_method: values.payment_method,
+        notes: values.notes,
+        fee_type: feeTypeToRecord,
+    }]);
+
     if (error) {
       toast.error(`Payment failed: ${error.message}`);
     } else {
       toast.success("Payment recorded successfully!");
-      await logActivity("Fee Collection", values, currentYearRecord.id);
-      paymentForm.reset({ amount: 0, payment_method: "cash", notes: "", fee_type: "" });
+      await logActivity("Fee Collection", { ...values, fee_type: feeTypeToRecord }, currentYearRecord.id);
+      paymentForm.reset({ amount: 0, payment_method: "cash", notes: "", fee_type: "", other_fee_description: "" });
       await fetchStudentFinancials(studentRecords.map(s => s.id));
     }
     setIsSubmitting(false);
@@ -281,11 +297,25 @@ export default function FeeCollectionPage() {
     [studentRecords, payments, invoices]
   );
 
+  const allFeeItems = useMemo(() => {
+    if (!studentRecords) return [];
+    const items = new Map<string, { label: string; value: string }>();
+    studentRecords.forEach(record => {
+        if (record.fee_details) {
+            Object.entries(record.fee_details).forEach(([year, fees]) => {
+                fees.forEach(fee => {
+                    const value = `${year} - ${fee.name}`;
+                    if (!items.has(value)) {
+                        items.set(value, { label: value, value: value });
+                    }
+                });
+            });
+        }
+    });
+    return Array.from(items.values());
+  }, [studentRecords]);
+
   const currentYearRecord = useMemo(() => studentRecords.find(r => r.academic_years?.is_active), [studentRecords]);
-  const feeItemsForCurrentYear = useMemo(() => {
-    if (!currentYearRecord) return [];
-    return currentYearRecord.fee_details?.[currentYearRecord.studying_year] || [];
-  }, [currentYearRecord]);
 
   return (
     <div className="space-y-6">
@@ -329,37 +359,9 @@ export default function FeeCollectionPage() {
             </CardContent>
           </Card>
 
-          {invoices.length > 0 && (
-            <Card className="print:hidden">
-              <CardHeader>
-                <CardTitle>Outstanding Invoices</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invoices.map(invoice => (
-                      <TableRow key={invoice.id}>
-                        <TableCell>{invoice.batch_description}</TableCell>
-                        <TableCell>{new Date(invoice.due_date).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">{invoice.total_amount.toFixed(2)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6 print:hidden">
-              <Card>
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="print:hidden">
                 <CardHeader><CardTitle>Overall Financial Summary</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                     <div><p className="font-medium">Total Due</p><p>{overallSummary.totalDue.toFixed(2)}</p></div>
@@ -370,7 +372,7 @@ export default function FeeCollectionPage() {
                 </CardContent>
               </Card>
 
-              <Accordion type="single" collapsible className="w-full" defaultValue={currentYearRecord?.studying_year}>
+              <Accordion type="single" collapsible className="w-full print:hidden" defaultValue={currentYearRecord?.studying_year}>
                 {yearlySummaries.map((summary) => (
                     <AccordionItem value={summary.year} key={summary.year}>
                       <AccordionTrigger>
@@ -413,35 +415,54 @@ export default function FeeCollectionPage() {
             </div>
             <div className="space-y-6">
               <Card className="print:hidden">
-                <CardHeader><CardTitle>Collect Payment for {currentYearRecord?.academic_years?.year_name}</CardTitle></CardHeader>
-                <CardContent>
-                  <Form {...paymentForm}>
-                    <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
-                      <FormField control={paymentForm.control} name="fee_type" render={({ field }) => (
-                        <FormItem><FormLabel>Fee Type</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Select fee type..." /></SelectTrigger></FormControl>
-                            <SelectContent>{feeItemsForCurrentYear.map(ft => <SelectItem key={ft.id} value={ft.name}>{ft.name}</SelectItem>)}</SelectContent>
-                          </Select>
-                        <FormMessage /></FormItem>
-                      )} />
-                      <FormField control={paymentForm.control} name="amount" render={({ field }) => (
-                        <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                      )} />
-                      <FormField control={paymentForm.control} name="payment_method" render={({ field }) => (
-                        <FormItem><FormLabel>Payment Method</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                            <SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem></SelectContent>
-                          </Select>
-                        <FormMessage /></FormItem>
-                      )} />
-                      <FormField control={paymentForm.control} name="notes" render={({ field }) => (
-                        <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                      )} />
-                      <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? "Processing..." : "Collect Payment"}</Button>
-                    </form>
-                  </Form>
+                <CardHeader><CardTitle>Others</CardTitle><CardDescription>Collect for outstanding invoices or other fees.</CardDescription></CardHeader>
+                <CardContent className="space-y-6">
+                  {invoices.length > 0 && (
+                      <div>
+                          <h3 className="font-semibold mb-2 text-sm">Outstanding Invoices</h3>
+                          <Table>
+                              <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                              <TableBody>
+                                  {invoices.map(invoice => (<TableRow key={invoice.id}><TableCell>{invoice.batch_description}</TableCell><TableCell className="text-right">{invoice.total_amount.toFixed(2)}</TableCell></TableRow>))}
+                              </TableBody>
+                          </Table>
+                      </div>
+                  )}
+                  <div>
+                      <h3 className="font-semibold mb-4 text-sm pt-4 border-t">Collect New Payment</h3>
+                      <Form {...paymentForm}>
+                          <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
+                              <FormField control={paymentForm.control} name="fee_type" render={({ field }) => (
+                                  <FormItem><FormLabel>Fee Type</FormLabel>
+                                      <Select onValueChange={field.onChange} value={field.value}>
+                                          <FormControl><SelectTrigger><SelectValue placeholder="Select fee type..." /></SelectTrigger></FormControl>
+                                          <SelectContent>{allFeeItems.map(ft => <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>)}<SelectItem value="Other">Other</SelectItem></SelectContent>
+                                      </Select>
+                                  <FormMessage /></FormItem>
+                              )} />
+                              {watchedFeeType === 'Other' && (
+                                  <FormField control={paymentForm.control} name="other_fee_description" render={({ field }) => (
+                                      <FormItem><FormLabel>Fee Description</FormLabel><FormControl><Input placeholder="e.g., Fine for late submission" {...field} /></FormControl><FormMessage /></FormItem>
+                                  )} />
+                              )}
+                              <FormField control={paymentForm.control} name="amount" render={({ field }) => (
+                                  <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                              )} />
+                              <FormField control={paymentForm.control} name="payment_method" render={({ field }) => (
+                                  <FormItem><FormLabel>Payment Method</FormLabel>
+                                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                          <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                          <SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem></SelectContent>
+                                      </Select>
+                                  <FormMessage /></FormItem>
+                              )} />
+                              <FormField control={paymentForm.control} name="notes" render={({ field }) => (
+                                  <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                              )} />
+                              <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? "Processing..." : "Collect Payment"}</Button>
+                          </form>
+                      </Form>
+                  </div>
                 </CardContent>
               </Card>
               <Card>
@@ -469,8 +490,8 @@ export default function FeeCollectionPage() {
               </Card>
             </div>
           </div>
-          <Dialog open={editConcessionDialogOpen} onOpenChange={setEditConcessionDialogOpen} className="print:hidden">
-            <DialogContent>
+          <Dialog open={editConcessionDialogOpen} onOpenChange={setEditConcessionDialogOpen} >
+            <DialogContent className="print:hidden">
                 <DialogHeader><DialogTitle>Edit Concession for {concessionContext?.fee.name}</DialogTitle></DialogHeader>
                 <Form {...editConcessionForm}>
                     <form onSubmit={editConcessionForm.handleSubmit(onEditConcessionSubmit)} className="space-y-4">
