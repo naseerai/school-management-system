@@ -18,7 +18,6 @@ import { AcademicYear } from "@/types";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { FeeSummaryTable, FeeSummaryTableData } from "@/components/fee-collection/FeeSummaryTable";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 
 // Schemas
@@ -519,57 +518,51 @@ export default function FeeCollectionPage() {
                     <CardTitle>Detailed Fee Structure</CardTitle>
                     <CardDescription>View and manage concessions for each fee item.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <Accordion type="single" collapsible className="w-full" defaultValue={currentYearRecord?.studying_year}>
-                        {yearlySummaries.map((summary) => (
-                            <AccordionItem value={summary.year} key={summary.year}>
-                                <AccordionTrigger>
-                                    <div className="flex justify-between w-full pr-4">
-                                    <span>{summary.year}</span>
-                                    <Badge variant={summary.balance > 0 ? "destructive" : "default"}>
-                                        Balance: {summary.balance.toFixed(2)}
-                                    </Badge>
-                                    </div>
-                                </AccordionTrigger>
-                                <AccordionContent>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Fee Type</TableHead>
-                                                <TableHead>Amount</TableHead>
-                                                <TableHead>Concession</TableHead>
-                                                <TableHead className="text-right">Payable</TableHead>
-                                                {cashierProfile?.has_discount_permission && <TableHead className="text-right">Actions</TableHead>}
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {summary.feeItems.length > 0 ? summary.feeItems.map(item => (
-                                                <TableRow key={item.id}>
-                                                    <TableCell>{item.name}</TableCell>
-                                                    <TableCell>{item.amount.toFixed(2)}</TableCell>
-                                                    <TableCell>{(item.concession || 0).toFixed(2)}</TableCell>
-                                                    <TableCell className="text-right font-medium">{(item.amount - (item.concession || 0)).toFixed(2)}</TableCell>
-                                                    {cashierProfile?.has_discount_permission && summary.studentRecordForYear && (
-                                                        <TableCell className="text-right">
-                                                            <Button variant="outline" size="sm" onClick={() => handleEditConcessionClick(item, summary.studentRecordForYear!)}>
-                                                                Edit Concession
-                                                            </Button>
-                                                        </TableCell>
-                                                    )}
-                                                </TableRow>
-                                            )) : (
-                                                <TableRow>
-                                                    <TableCell colSpan={cashierProfile?.has_discount_permission ? 5 : 4} className="text-center">
-                                                        No fee structure defined for this year.
-                                                    </TableCell>
-                                                </TableRow>
+                <CardContent className="space-y-6">
+                    {yearlySummaries.map((summary) => (
+                        <div key={summary.year} className="border rounded-lg p-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-semibold text-lg">{summary.year}</h3>
+                                <Badge variant={summary.balance > 0 ? "destructive" : "default"}>
+                                    Balance: {summary.balance.toFixed(2)}
+                                </Badge>
+                            </div>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Fee Type</TableHead>
+                                        <TableHead>Amount</TableHead>
+                                        <TableHead>Concession</TableHead>
+                                        <TableHead className="text-right">Payable</TableHead>
+                                        {cashierProfile?.has_discount_permission && <TableHead className="text-right">Actions</TableHead>}
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {summary.feeItems.length > 0 ? summary.feeItems.map(item => (
+                                        <TableRow key={item.id}>
+                                            <TableCell>{item.name}</TableCell>
+                                            <TableCell>{item.amount.toFixed(2)}</TableCell>
+                                            <TableCell>{(item.concession || 0).toFixed(2)}</TableCell>
+                                            <TableCell className="text-right font-medium">{(item.amount - (item.concession || 0)).toFixed(2)}</TableCell>
+                                            {cashierProfile?.has_discount_permission && summary.studentRecordForYear && (
+                                                <TableCell className="text-right">
+                                                    <Button variant="outline" size="sm" onClick={() => handleEditConcessionClick(item, summary.studentRecordForYear!)}>
+                                                        Edit Concession
+                                                    </Button>
+                                                </TableCell>
                                             )}
-                                        </TableBody>
-                                    </Table>
-                                </AccordionContent>
-                            </AccordionItem>
-                        ))}
-                    </Accordion>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow>
+                                            <TableCell colSpan={cashierProfile?.has_discount_permission ? 5 : 4} className="text-center">
+                                                No fee structure defined for this year.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    ))}
                 </CardContent>
             </Card>
 
