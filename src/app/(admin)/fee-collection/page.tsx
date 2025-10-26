@@ -39,6 +39,8 @@ const editConcessionSchema = z.object({
 });
 
 const invoicePaymentSchema = z.object({
+  payment_year: z.string().min(1, "Please select a year"),
+  amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
   payment_method: z.enum(["cash", "upi"]),
   notes: z.string().optional(),
 });
@@ -59,6 +61,7 @@ type Invoice = {
   due_date: string;
   status: 'paid' | 'unpaid';
   total_amount: number;
+  paid_amount: number;
   batch_description: string;
 };
 type CashierProfile = {
@@ -106,7 +109,7 @@ const calculateFinancials = (studentRecords: StudentDetails[], allPayments: Paym
         return { year, feeItems, totalDue, totalConcession, totalPaid: totalPaidForYear, balance, studentRecordForYear };
     });
 
-    const outstandingInvoiceTotal = invoices.reduce((sum, inv) => sum + inv.total_amount, 0);
+    const outstandingInvoiceTotal = invoices.reduce((sum, inv) => sum + (inv.total_amount - (inv.paid_amount || 0)), 0);
     const overallTotalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);
     const { totalDue: feeStructureTotalDue, totalConcession: overallTotalConcession } = yearlySummaries.reduce(
         (acc, summary) => ({
@@ -116,7 +119,7 @@ const calculateFinancials = (studentRecords: StudentDetails[], allPayments: Paym
         { totalDue: 0, totalConcession: 0 }
     );
     
-    const overallTotalDue = feeStructureTotalDue + outstandingInvoiceTotal;
+    const overallTotalDue = feeStructureTotalDue + invoices.reduce((sum, inv) => sum + inv.total_amount, 0);
 
     const overallSummary = {
         totalDue: overallTotalDue,
@@ -147,7 +150,7 @@ export default function FeeCollectionPage() {
   const searchForm = useForm<z.infer<typeof searchSchema>>({ resolver: zodResolver(searchSchema), defaultValues: { academic_year_id: "", roll_number: "" } });
   const paymentForm = useForm<z.infer<typeof paymentSchema>>({ resolver: zodResolver(paymentSchema), defaultValues: { amount: 0, payment_method: "cash", notes: "", payment_year: "", fee_item_name: "" } });
   const editConcessionForm = useForm<z.infer<typeof editConcessionSchema>>({ resolver: zodResolver(editConcessionSchema), defaultValues: { amount: 0 } });
-  const invoicePaymentForm = useForm<z.infer<typeof invoicePaymentSchema>>({ resolver: zodResolver(invoicePaymentSchema), defaultValues: { payment_method: "cash", notes: "" } });
+  const invoicePaymentForm = useForm<z.infer<typeof invoicePaymentSchema>>({ resolver: zodResolver(invoicePaymentSchema), defaultValues: { payment_year: "", amount: 0, payment_method: "cash", notes: "" } });
 
   const watchedPaymentYear = paymentForm.watch("payment_year");
 
@@ -188,7 +191,7 @@ export default function FeeCollectionPage() {
     }
     const { data, error } = await supabase
       .from('invoices')
-      .select('id, due_date, status, total_amount, batch_description')
+      .select('id, due_date, status, total_amount, paid_amount, batch_description')
       .in('student_id', studentIds)
       .eq('status', 'unpaid')
       .order('due_date', { ascending: true });
@@ -313,7 +316,15 @@ export default function FeeCollectionPage() {
 
   const handlePayInvoiceClick = (invoice: Invoice) => {
     setInvoiceToPay(invoice);
-    invoicePaymentForm.reset();
+    const remainingBalance = invoice.total_amount - (invoice.paid_amount || 0);
+    const studentYear = currentYearRecord?.studying_year;
+    
+    invoicePaymentForm.reset({ 
+      payment_year: studentYear || '',
+      amount: parseFloat(remainingBalance.toFixed(2)), 
+      payment_method: "cash", 
+      notes: "" 
+    });
     setInvoicePaymentDialogOpen(true);
   };
 
@@ -327,9 +338,9 @@ export default function FeeCollectionPage() {
     const paymentData = {
       student_id: studentRecords[0].id,
       cashier_id: cashierProfile.id,
-      amount: invoiceToPay.total_amount,
+      amount: values.amount,
       payment_method: values.payment_method,
-      fee_type: `Invoice: ${invoiceToPay.batch_description}`,
+      fee_type: `${values.payment_year} - Invoice: ${invoiceToPay.batch_description}`,
       notes: values.notes,
     };
 
@@ -340,12 +351,19 @@ export default function FeeCollectionPage() {
       return;
     }
 
-    const { error: invoiceError } = await supabase.from('invoices').update({ status: 'paid' }).eq('id', invoiceToPay.id);
+    const newPaidAmount = (invoiceToPay.paid_amount || 0) + values.amount;
+    const newStatus = newPaidAmount >= invoiceToPay.total_amount ? 'paid' : 'unpaid';
+
+    const { error: invoiceError } = await supabase
+      .from('invoices')
+      .update({ paid_amount: newPaidAmount, status: newStatus })
+      .eq('id', invoiceToPay.id);
+
     if (invoiceError) {
       toast.error(`Payment recorded, but failed to update invoice status: ${invoiceError.message}`);
     } else {
-      toast.success("Invoice paid successfully!");
-      await logActivity("Invoice Payment", { description: invoiceToPay.batch_description, amount: invoiceToPay.total_amount }, studentRecords[0].id);
+      toast.success("Invoice payment recorded successfully!");
+      await logActivity("Invoice Payment", { description: invoiceToPay.batch_description, amount: values.amount }, studentRecords[0].id);
     }
 
     setInvoicePaymentDialogOpen(false);
@@ -487,7 +505,7 @@ export default function FeeCollectionPage() {
                                 <div><p className="font-medium">Yearly Due</p><p>{summary.totalDue.toFixed(2)}</p></div>
                                 <div><p className="font-medium text-orange-600">Yearly Concession</p><p className="text-orange-600">{summary.totalConcession.toFixed(2)}</p></div>
                                 <div><p className="font-medium text-green-600">Yearly Paid</p><p className="text-green-600">{summary.totalPaid.toFixed(2)}</p></div>
-                                <div><p className="font-medium">Yearly Balance</p><p>{summary.balance.toFixed(2)}</p></div>
+                                <div><p className="font-medium">Yearly Balance</p><p className="text-bold">{summary.balance.toFixed(2)}</p></div>
                             </div>
                           </CardContent>
                         </Card>
@@ -505,9 +523,9 @@ export default function FeeCollectionPage() {
                   </CardHeader>
                   <CardContent>
                     <Table>
-                      <TableHeader><TableRow><TableHead>Description</TableHead><TableHead>Amount</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
+                      <TableHeader><TableRow><TableHead>Description</TableHead><TableHead>Total</TableHead><TableHead>Balance</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
                       <TableBody>
-                        {invoices.map(invoice => (<TableRow key={invoice.id}><TableCell>{invoice.batch_description}</TableCell><TableCell>{invoice.total_amount.toFixed(2)}</TableCell><TableCell><Button size="sm" onClick={() => handlePayInvoiceClick(invoice)}>Collect Payment</Button></TableCell></TableRow>))}
+                        {invoices.map(invoice => (<TableRow key={invoice.id}><TableCell>{invoice.batch_description}</TableCell><TableCell>{invoice.total_amount.toFixed(2)}</TableCell><TableCell className="font-medium">{(invoice.total_amount - (invoice.paid_amount || 0)).toFixed(2)}</TableCell><TableCell><Button size="sm" onClick={() => handlePayInvoiceClick(invoice)}>Collect Payment</Button></TableCell></TableRow>))}
                       </TableBody>
                     </Table>
                   </CardContent>
@@ -569,8 +587,7 @@ export default function FeeCollectionPage() {
                         )} />
                         <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? "Processing..." : "Collect Payment"}</Button>
                       </form>
-                    </Form>
-                  </fieldset>
+                    </fieldset>
                 </CardContent>
               </Card>
               <Card>
@@ -613,10 +630,24 @@ export default function FeeCollectionPage() {
               <DialogHeader><DialogTitle>Collect Invoice Payment</DialogTitle></DialogHeader>
               <div className="space-y-2 text-sm">
                 <p><strong>Description:</strong> {invoiceToPay?.batch_description}</p>
-                <p><strong>Amount:</strong> {invoiceToPay?.total_amount.toFixed(2)}</p>
+                <p><strong>Total Amount:</strong> {invoiceToPay?.total_amount.toFixed(2)}</p>
+                <p><strong>Remaining Balance:</strong> {(invoiceToPay?.total_amount || 0) - (invoiceToPay?.paid_amount || 0)}</p>
               </div>
               <Form {...invoicePaymentForm}>
                 <form onSubmit={invoicePaymentForm.handleSubmit(onInvoicePaymentSubmit)} className="space-y-4">
+                  <FormField control={invoicePaymentForm.control} name="payment_year" render={({ field }) => (
+                    <FormItem><FormLabel>Academic Year</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select year..." /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {Object.keys(masterFeeDetails).map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    <FormMessage /></FormItem>
+                  )} />
+                  <FormField control={invoicePaymentForm.control} name="amount" render={({ field }) => (
+                    <FormItem><FormLabel>Amount to Collect</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
                   <FormField control={invoicePaymentForm.control} name="payment_method" render={({ field }) => (
                     <FormItem><FormLabel>Payment Method</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
