@@ -128,6 +128,7 @@ export default function FeeCollectionPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editConcessionDialogOpen, setEditConcessionDialogOpen] = useState(false);
   const [concessionContext, setConcessionContext] = useState<{ fee: FeeItem; studentRecord: StudentDetails } | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const searchForm = useForm<z.infer<typeof searchSchema>>({ resolver: zodResolver(searchSchema), defaultValues: { academic_year_id: "", roll_number: "" } });
   const paymentForm = useForm<z.infer<typeof paymentSchema>>({ resolver: zodResolver(paymentSchema), defaultValues: { amount: 0, payment_method: "cash", notes: "", payment_year: "", fee_item_name: "" } });
@@ -137,6 +138,7 @@ export default function FeeCollectionPage() {
 
   useEffect(() => {
     const fetchInitialData = async () => {
+      setIsInitializing(true);
       const { data: { user } } = await supabase.auth.getUser();
       setSessionUser(user);
 
@@ -148,6 +150,8 @@ export default function FeeCollectionPage() {
       const { data, error } = await supabase.from("academic_years").select("*").order("year_name", { ascending: false });
       if (error) toast.error("Failed to fetch academic years.");
       else setAcademicYears(data || []);
+      
+      setIsInitializing(false);
     };
     fetchInitialData();
   }, []);
@@ -214,9 +218,9 @@ export default function FeeCollectionPage() {
   };
 
   const logActivity = async (action: string, details: object, studentId: string) => {
-    if (!sessionUser) return;
+    if (!sessionUser || !cashierProfile) return;
     await supabase.from('activity_logs').insert({
-      cashier_id: cashierProfile?.id,
+      cashier_id: cashierProfile.id,
       student_id: studentId,
       action,
       details,
@@ -323,6 +327,25 @@ export default function FeeCollectionPage() {
         paymentForm.setValue('amount', Math.max(0, parseFloat(balance.toFixed(2))));
     }
   };
+
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p>Initializing Fee Collection...</p>
+      </div>
+    );
+  }
+
+  if (!cashierProfile) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Error</CardTitle>
+          <CardDescription>Could not load cashier profile. Please try logging out and back in.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
