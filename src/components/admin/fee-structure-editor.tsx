@@ -98,11 +98,6 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
     setFeeTypeDialogOpen(false);
   };
 
-  const handleDeleteYear = (yearToDelete: string) => {
-    const { [yearToDelete]: _, ...rest } = value;
-    onChange(rest);
-  };
-
   const handleDeleteFeeType = (feeTypeToDelete: string) => {
     const newValue = { ...value };
     Object.keys(newValue).forEach(year => {
@@ -185,20 +180,6 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
                     <TableHead key={year} className="text-center border-l min-w-[250px]">
                       <div className="flex items-center justify-center gap-2">
                         {year}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Delete "{year}"?</AlertDialogTitle><AlertDialogDescription>This will remove the entire year and its fee details. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteYear(year)}>Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
                       </div>
                     </TableHead>
                   ))}
