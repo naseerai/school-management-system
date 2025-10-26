@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   Table,
   TableBody,
@@ -8,7 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 type FeeSummaryCell = {
   total: number;
@@ -42,28 +44,44 @@ export type FeeSummaryTableData = {
 
 interface FeeSummaryTableProps {
   data: FeeSummaryTableData | null;
+  onPay: (feeType: string) => void;
+  onCollectOther: () => void;
 }
 
-export function FeeSummaryTable({ data }: FeeSummaryTableProps) {
+export function FeeSummaryTable({ data, onPay, onCollectOther }: FeeSummaryTableProps) {
   if (!data) return null;
 
   const { years, feeTypes, cellData, yearlyTotals, overallTotals } = data;
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Fee Summary</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+            <CardTitle>Fee Summary</CardTitle>
+            <CardDescription>Detailed breakdown of fees across all academic years.</CardDescription>
+        </div>
+        <Button onClick={onCollectOther}>Collect Other Payment</Button>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
           <Table className="min-w-full border">
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 z-10 bg-background border-r">Fee Type</TableHead>
+                <TableHead rowSpan={2} className="sticky left-0 z-10 bg-background border-r min-w-[150px] align-middle">Fee Type</TableHead>
                 {years.map(year => (
-                  <TableHead key={year} className="text-center whitespace-nowrap">{year}</TableHead>
+                  <TableHead key={year} colSpan={3} className="text-center border-l">{year}</TableHead>
                 ))}
-                <TableHead className="text-center font-bold border-l">Overall</TableHead>
+                <TableHead rowSpan={2} className="border-l align-middle">Overall Balance</TableHead>
+                <TableHead rowSpan={2} className="border-l align-middle">Actions</TableHead>
+              </TableRow>
+              <TableRow>
+                {years.map(year => (
+                    <React.Fragment key={`${year}-cols`}>
+                        <TableHead className="text-center border-l">Total</TableHead>
+                        <TableHead className="text-center">Paid</TableHead>
+                        <TableHead className="text-center">Balance</TableHead>
+                    </React.Fragment>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -73,32 +91,21 @@ export function FeeSummaryTable({ data }: FeeSummaryTableProps) {
                   {years.map(year => {
                     const cell = cellData[year]?.[feeType] || { total: 0, paid: 0, pending: 0 };
                     return (
-                      <TableCell key={year} className="text-center">
-                        {cell.total > 0 ? (
-                          <div className="text-xs space-y-1">
-                            <div><span className="font-semibold">T:</span> {cell.total.toFixed(2)}</div>
-                            <div className="text-green-600"><span className="font-semibold">P:</span> {cell.paid.toFixed(2)}</div>
-                            <div className="text-red-600"><span className="font-semibold">B:</span> {cell.pending.toFixed(2)}</div>
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
+                      <React.Fragment key={year}>
+                        <TableCell className="text-center border-l">{cell.total.toFixed(2)}</TableCell>
+                        <TableCell className="text-center text-green-600">{cell.paid.toFixed(2)}</TableCell>
+                        <TableCell className="text-center text-red-600 font-medium">{cell.pending.toFixed(2)}</TableCell>
+                      </React.Fragment>
                     );
                   })}
-                  <TableCell className="text-center font-semibold border-l">
+                  <TableCell className="text-center font-bold border-l text-red-600">
                     {(() => {
-                      const rowTotal = years.reduce((sum, year) => sum + (cellData[year]?.[feeType]?.total || 0), 0);
-                      const rowPaid = years.reduce((sum, year) => sum + (cellData[year]?.[feeType]?.paid || 0), 0);
                       const rowPending = years.reduce((sum, year) => sum + (cellData[year]?.[feeType]?.pending || 0), 0);
-                       return (
-                          <div className="text-xs space-y-1">
-                            <div><span className="font-semibold">T:</span> {rowTotal.toFixed(2)}</div>
-                            <div className="text-green-600"><span className="font-semibold">P:</span> {rowPaid.toFixed(2)}</div>
-                            <div className="text-red-600"><span className="font-semibold">B:</span> {rowPending.toFixed(2)}</div>
-                          </div>
-                        );
+                      return rowPending.toFixed(2);
                     })()}
+                  </TableCell>
+                  <TableCell className="text-center border-l">
+                    <Button size="sm" variant="outline" onClick={() => onPay(feeType)}>Pay</Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -106,37 +113,32 @@ export function FeeSummaryTable({ data }: FeeSummaryTableProps) {
               <TableRow className="bg-muted/50 font-semibold">
                 <TableCell className="sticky left-0 z-10 bg-muted/50 border-r">Concession</TableCell>
                 {years.map(year => (
-                  <TableCell key={year} className="text-center text-orange-600">
+                  <TableCell key={year} colSpan={3} className="text-center text-orange-600 border-l">
                     - {yearlyTotals[year].concession.toFixed(2)}
                   </TableCell>
                 ))}
                 <TableCell className="text-center text-orange-600 border-l">
                   - {overallTotals.concession.toFixed(2)}
                 </TableCell>
+                <TableCell className="border-l"></TableCell>
               </TableRow>
 
               <TableRow className="bg-muted/50 font-bold text-sm">
                 <TableCell className="sticky left-0 z-10 bg-muted/50 border-r">Fee Due</TableCell>
                 {years.map(year => {
                   const yearTotal = yearlyTotals[year];
-                  const payable = yearTotal.total - yearTotal.concession;
                   return (
-                    <TableCell key={year} className="text-center">
-                      <div className="text-xs space-y-1">
-                        <div><span className="font-semibold">T:</span> {payable.toFixed(2)}</div>
-                        <div className="text-green-600"><span className="font-semibold">P:</span> {yearTotal.paid.toFixed(2)}</div>
-                        <div className="text-red-600"><span className="font-semibold">B:</span> {yearTotal.pending.toFixed(2)}</div>
-                      </div>
-                    </TableCell>
+                    <React.Fragment key={year}>
+                        <TableCell className="text-center border-l">{(yearTotal.total - yearTotal.concession).toFixed(2)}</TableCell>
+                        <TableCell className="text-center text-green-600">{yearTotal.paid.toFixed(2)}</TableCell>
+                        <TableCell className="text-center text-red-600">{yearTotal.pending.toFixed(2)}</TableCell>
+                    </React.Fragment>
                   );
                 })}
-                <TableCell className="text-center border-l">
-                  <div className="text-xs space-y-1">
-                    <div><span className="font-semibold">T:</span> {(overallTotals.total - overallTotals.concession).toFixed(2)}</div>
-                    <div className="text-green-600"><span className="font-semibold">P:</span> {overallTotals.paid.toFixed(2)}</div>
-                    <div className="text-red-600"><span className="font-semibold">B:</span> {overallTotals.pending.toFixed(2)}</div>
-                  </div>
+                <TableCell className="text-center border-l text-red-600">
+                  {overallTotals.pending.toFixed(2)}
                 </TableCell>
+                <TableCell className="border-l"></TableCell>
               </TableRow>
             </TableBody>
           </Table>
