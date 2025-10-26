@@ -16,9 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { AcademicYear } from "@/types";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-// import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 // Schemas
 const searchSchema = z.object({
@@ -42,6 +40,11 @@ const editConcessionSchema = z.object({
 });
 
 // Types
+type AcademicYear = {
+  id: string;
+  year_name: string;
+  is_active: boolean;
+};
 type FeeItem = { id: string; name: string; amount: number; concession: number };
 type StudentDetails = {
   id: string; name: string; roll_number: string; class: string; section: string; studying_year: string;
