@@ -34,6 +34,7 @@ const paymentSchema = z.object({
 });
 
 const editConcessionSchema = z.object({
+  year: z.string().min(1, "Please select a year"),
   amount: z.coerce.number().min(0, "Amount must be a non-negative number"),
 });
 
@@ -78,7 +79,6 @@ export default function FeeCollectionPage() {
   const [cashierProfile, setCashierProfile] = useState<CashierProfile | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editConcessionDialogOpen, setEditConcessionDialogOpen] = useState(false);
-  const [concessionContext, setConcessionContext] = useState<{ year: string; studentRecord: StudentDetails } | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [invoicePaymentDialogOpen, setInvoicePaymentDialogOpen] = useState(false);
   const [invoiceToPay, setInvoiceToPay] = useState<Invoice | null>(null);
@@ -86,10 +86,11 @@ export default function FeeCollectionPage() {
 
   const searchForm = useForm<z.infer<typeof searchSchema>>({ resolver: zodResolver(searchSchema), defaultValues: { academic_year_id: "", roll_number: "" } });
   const paymentForm = useForm<z.infer<typeof paymentSchema>>({ resolver: zodResolver(paymentSchema), defaultValues: { amount: 0, payment_method: "cash", notes: "", payment_year: "", fee_item_name: "" } });
-  const editConcessionForm = useForm<z.infer<typeof editConcessionSchema>>({ resolver: zodResolver(editConcessionSchema), defaultValues: { amount: 0 } });
+  const editConcessionForm = useForm<z.infer<typeof editConcessionSchema>>({ resolver: zodResolver(editConcessionSchema), defaultValues: { year: "", amount: 0 } });
   const invoicePaymentForm = useForm<z.infer<typeof invoicePaymentSchema>>({ resolver: zodResolver(invoicePaymentSchema), defaultValues: { payment_year: "", amount: 0, payment_method: "cash", notes: "" } });
 
   const watchedPaymentYear = paymentForm.watch("payment_year");
+  const watchedConcessionYear = editConcessionForm.watch("year");
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -218,21 +219,14 @@ export default function FeeCollectionPage() {
     setIsSubmitting(false);
   };
 
-  const handleEditYearlyConcessionClick = (year: string) => {
-    if (studentRecords.length === 0) return;
-    const masterStudentRecord = studentRecords[studentRecords.length - 1];
-    
-    setConcessionContext({ year, studentRecord: masterStudentRecord });
-    
-    const feeItems = masterStudentRecord.fee_details[year] || [];
-    const totalConcession = feeItems.reduce((sum, item) => sum + (item.concession || 0), 0);
-    editConcessionForm.setValue('amount', totalConcession);
+  const handleOpenConcessionDialog = () => {
+    editConcessionForm.reset({ year: "", amount: 0 });
     setEditConcessionDialogOpen(true);
   };
 
   const onEditConcessionSubmit = async (values: z.infer<typeof editConcessionSchema>) => {
-    if (!concessionContext || studentRecords.length === 0) return;
-    const { year } = concessionContext;
+    if (studentRecords.length === 0) return;
+    const { year, amount } = values;
     const masterStudentRecord = studentRecords[studentRecords.length - 1];
 
     setIsSubmitting(true);
@@ -247,7 +241,7 @@ export default function FeeCollectionPage() {
     }
 
     feeItemsForYear.forEach((item: FeeItem, index: number) => {
-        item.concession = (index === 0) ? values.amount : 0;
+        item.concession = (index === 0) ? amount : 0;
     });
 
     const { error } = await supabase
@@ -259,7 +253,7 @@ export default function FeeCollectionPage() {
         toast.error(`Failed to update concession: ${error.message}`);
     } else {
         toast.success("Concession updated successfully!");
-        await logActivity("Yearly Concession Edited", { year, amount: values.amount }, masterStudentRecord.id);
+        await logActivity("Yearly Concession Edited", { year, amount }, masterStudentRecord.id);
         setEditConcessionDialogOpen(false);
         await refetchStudent();
     }
@@ -427,6 +421,15 @@ export default function FeeCollectionPage() {
     }
   };
 
+  useEffect(() => {
+    if (watchedConcessionYear && studentRecords.length > 0) {
+        const masterStudentRecord = studentRecords[studentRecords.length - 1];
+        const feeItems = masterStudentRecord.fee_details[watchedConcessionYear] || [];
+        const totalConcession = feeItems.reduce((sum, item) => sum + (item.concession || 0), 0);
+        editConcessionForm.setValue('amount', totalConcession);
+    }
+  }, [watchedConcessionYear, studentRecords, editConcessionForm]);
+
   if (isInitializing) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -490,7 +493,7 @@ export default function FeeCollectionPage() {
                 onPay={handlePayClick} 
                 onCollectOther={handleCollectOtherClick}
                 hasDiscountPermission={cashierProfile?.has_discount_permission || false}
-                onEditConcession={handleEditYearlyConcessionClick}
+                onEditConcession={handleOpenConcessionDialog}
             />
             
             {invoices.length > 0 && (
@@ -531,9 +534,19 @@ export default function FeeCollectionPage() {
 
           <Dialog open={editConcessionDialogOpen} onOpenChange={setEditConcessionDialogOpen}>
             <DialogContent>
-                <DialogHeader><DialogTitle>Edit Concession for {concessionContext?.year}</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>Edit Yearly Concession</DialogTitle></DialogHeader>
                 <Form {...editConcessionForm}>
                     <form onSubmit={editConcessionForm.handleSubmit(onEditConcessionSubmit)} className="space-y-4">
+                        <FormField control={editConcessionForm.control} name="year" render={({ field }) => (
+                            <FormItem><FormLabel>Academic Year</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select year to edit..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {Object.keys(masterFeeDetails).map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            <FormMessage /></FormItem>
+                        )} />
                         <FormField control={editConcessionForm.control} name="amount" render={({ field }) => (
                             <FormItem><Label>Total Concession Amount</Label><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />

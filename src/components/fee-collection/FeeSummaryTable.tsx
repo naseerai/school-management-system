@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
 
 type FeeSummaryCell = {
   total: number;
@@ -48,7 +47,7 @@ interface FeeSummaryTableProps {
   onPay: (feeType: string) => void;
   onCollectOther: () => void;
   hasDiscountPermission: boolean;
-  onEditConcession: (year: string) => void;
+  onEditConcession: () => void;
 }
 
 export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermission, onEditConcession }: FeeSummaryTableProps) {
@@ -117,20 +116,17 @@ export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermis
                 <TableCell className="sticky left-0 z-10 bg-muted/50 border-r">Concession</TableCell>
                 {years.map(year => (
                   <TableCell key={year} colSpan={3} className="text-center text-orange-600 border-l">
-                    <div className="flex items-center justify-center gap-1">
-                        <span>- {yearlyTotals[year].concession.toFixed(2)}</span>
-                        {hasDiscountPermission && (
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditConcession(year)}>
-                                <Pencil className="h-3 w-3" />
-                            </Button>
-                        )}
-                    </div>
+                    - {yearlyTotals[year].concession.toFixed(2)}
                   </TableCell>
                 ))}
                 <TableCell className="text-center text-orange-600 border-l">
                   - {overallTotals.concession.toFixed(2)}
                 </TableCell>
-                <TableCell className="border-l"></TableCell>
+                <TableCell className="text-center border-l">
+                  {hasDiscountPermission && (
+                    <Button size="sm" variant="secondary" onClick={onEditConcession}>Edit</Button>
+                  )}
+                </TableCell>
               </TableRow>
 
               <TableRow className="bg-muted/50 font-bold text-sm">
