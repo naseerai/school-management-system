@@ -497,78 +497,80 @@ export default function FeeCollectionPage() {
               </Accordion>
             </div>
             <div className="space-y-6">
+              {invoices.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Outstanding Invoices</CardTitle>
+                    <CardDescription>Collect payments for generated invoices.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader><TableRow><TableHead>Description</TableHead><TableHead>Amount</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {invoices.map(invoice => (<TableRow key={invoice.id}><TableCell>{invoice.batch_description}</TableCell><TableCell>{invoice.total_amount.toFixed(2)}</TableCell><TableCell><Button size="sm" onClick={() => handlePayInvoiceClick(invoice)}>Collect Payment</Button></TableCell></TableRow>))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
               <Card>
                 <CardHeader>
-                  <CardTitle>Others</CardTitle>
-                  <CardDescription>Collect for outstanding invoices or other fees.</CardDescription>
+                  <CardTitle>Collect New Payment</CardTitle>
+                  <CardDescription>Collect for yearly fees or other custom charges.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  {invoices.length > 0 && (
-                    <div>
-                      <h3 className="font-semibold mb-2 text-sm">Outstanding Invoices</h3>
-                      <Table>
-                        <TableHeader><TableRow><TableHead>Description</TableHead><TableHead>Amount</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                          {invoices.map(invoice => (<TableRow key={invoice.id}><TableCell>{invoice.batch_description}</TableCell><TableCell>{invoice.total_amount.toFixed(2)}</TableCell><TableCell><Button size="sm" onClick={() => handlePayInvoiceClick(invoice)}>Collect Payment</Button></TableCell></TableRow>))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="font-semibold mb-4 text-sm pt-4 border-t">Collect New Payment</h3>
-                    <fieldset disabled={isInitializing}>
-                      <Form {...paymentForm}>
-                        <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
-                          <FormField control={paymentForm.control} name="payment_year" render={({ field }) => (
-                            <FormItem><FormLabel>Year / Type</FormLabel>
-                              <Select onValueChange={(value) => { field.onChange(value); paymentForm.setValue("fee_item_name", ""); paymentForm.setValue("amount", 0); }} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl>
+                <CardContent>
+                  <fieldset disabled={isInitializing}>
+                    <Form {...paymentForm}>
+                      <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
+                        <FormField control={paymentForm.control} name="payment_year" render={({ field }) => (
+                          <FormItem><FormLabel>Year / Type</FormLabel>
+                            <Select onValueChange={(value) => { field.onChange(value); paymentForm.setValue("fee_item_name", ""); paymentForm.setValue("amount", 0); }} value={field.value}>
+                              <FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                {Object.keys(masterFeeDetails).map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
+                                <SelectItem value="Other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          <FormMessage /></FormItem>
+                        )} />
+
+                        {watchedPaymentYear && watchedPaymentYear !== 'Other' && (
+                          <FormField control={paymentForm.control} name="fee_item_name" render={({ field }) => (
+                            <FormItem><FormLabel>Fee Item</FormLabel>
+                              <Select onValueChange={(value) => handleFeeItemChange(value)} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select fee item..." /></SelectTrigger></FormControl>
                                 <SelectContent>
-                                  {Object.keys(masterFeeDetails).map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
-                                  <SelectItem value="Other">Other</SelectItem>
+                                  {(masterFeeDetails[watchedPaymentYear] || []).map(item => <SelectItem key={item.id} value={item.name}>{item.name}</SelectItem>)}
                                 </SelectContent>
                               </Select>
                             <FormMessage /></FormItem>
                           )} />
+                        )}
 
-                          {watchedPaymentYear && watchedPaymentYear !== 'Other' && (
-                            <FormField control={paymentForm.control} name="fee_item_name" render={({ field }) => (
-                              <FormItem><FormLabel>Fee Item</FormLabel>
-                                <Select onValueChange={(value) => handleFeeItemChange(value)} value={field.value}>
-                                  <FormControl><SelectTrigger><SelectValue placeholder="Select fee item..." /></SelectTrigger></FormControl>
-                                  <SelectContent>
-                                    {(masterFeeDetails[watchedPaymentYear] || []).map(item => <SelectItem key={item.id} value={item.name}>{item.name}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              <FormMessage /></FormItem>
-                            )} />
-                          )}
+                        {watchedPaymentYear === 'Other' && (
+                          <FormField control={paymentForm.control} name="fee_item_name" render={({ field }) => (
+                              <FormItem><FormLabel>Fee Description</FormLabel><FormControl><Input placeholder="e.g., Fine for late submission" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                        )}
 
-                          {watchedPaymentYear === 'Other' && (
-                            <FormField control={paymentForm.control} name="fee_item_name" render={({ field }) => (
-                                <FormItem><FormLabel>Fee Description</FormLabel><FormControl><Input placeholder="e.g., Fine for late submission" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                          )}
-
-                          <FormField control={paymentForm.control} name="amount" render={({ field }) => (
-                            <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={paymentForm.control} name="payment_method" render={({ field }) => (
-                            <FormItem><FormLabel>Payment Method</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                <SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem></SelectContent>
-                              </Select>
-                            <FormMessage /></FormItem>
-                          )} />
-                          <FormField control={paymentForm.control} name="notes" render={({ field }) => (
-                            <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? "Processing..." : "Collect Payment"}</Button>
-                        </form>
-                      </Form>
-                    </fieldset>
-                  </div>
+                        <FormField control={paymentForm.control} name="amount" render={({ field }) => (
+                          <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={paymentForm.control} name="payment_method" render={({ field }) => (
+                          <FormItem><FormLabel>Payment Method</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                              <SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem></SelectContent>
+                            </Select>
+                          <FormMessage /></FormItem>
+                        )} />
+                        <FormField control={paymentForm.control} name="notes" render={({ field }) => (
+                          <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? "Processing..." : "Collect Payment"}</Button>
+                      </form>
+                    </Form>
+                  </fieldset>
                 </CardContent>
               </Card>
               <Card>
