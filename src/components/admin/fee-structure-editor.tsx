@@ -47,6 +47,8 @@ const FIXED_YEARS = ['1st Year', '2nd Year', '3rd Year'];
 const BASE_FEE_TYPES = ['Tuition Fee', 'JVD Fee'];
 
 export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps) {
+  const [yearDialogOpen, setYearDialogOpen] = useState(false);
+  const [newYearName, setNewYearName] = useState("");
   const [feeTypeDialogOpen, setFeeTypeDialogOpen] = useState(false);
   const [newFeeTypeName, setNewFeeTypeName] = useState("");
 
@@ -67,11 +69,32 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
     }
   }, []); // Run only once on mount
 
+  const years = Object.keys(value || {}).sort();
   const allFeeTypes = Array.from(new Set(Object.values(value || {}).flat().map(item => item.name))).sort();
-  // Ensure base types are present and ordered correctly
   const otherFeeTypes = allFeeTypes.filter(ft => !BASE_FEE_TYPES.includes(ft));
   const feeTypes = [...BASE_FEE_TYPES, ...otherFeeTypes];
 
+  const handleAddYear = () => {
+    const trimmedYear = newYearName.trim();
+    if (!trimmedYear) {
+      toast.error("Year name cannot be empty.");
+      return;
+    }
+    if (value && value[trimmedYear]) {
+      toast.error(`Year "${trimmedYear}" already exists.`);
+      return;
+    }
+    const newValue = { ...value };
+    newValue[trimmedYear] = feeTypes.map(feeType => ({
+      id: crypto.randomUUID(),
+      name: feeType,
+      amount: 0,
+      concession: 0,
+    }));
+    onChange(newValue);
+    setNewYearName("");
+    setYearDialogOpen(false);
+  };
 
   const handleAddFeeType = () => {
     const trimmedFeeType = newFeeTypeName.trim();
@@ -84,7 +107,7 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
       return;
     }
     const newValue = JSON.parse(JSON.stringify(value));
-    FIXED_YEARS.forEach(year => {
+    years.forEach(year => {
       if (!newValue[year]) newValue[year] = [];
       newValue[year].push({
         id: crypto.randomUUID(),
@@ -104,7 +127,7 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
         return;
     }
     const newValue = JSON.parse(JSON.stringify(value));
-    FIXED_YEARS.forEach(year => {
+    years.forEach(year => {
       newValue[year] = newValue[year].filter((item: FeeItem) => item.name !== feeTypeToDelete);
     });
     onChange(newValue);
@@ -135,24 +158,44 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
             <CardTitle>Fee Structure</CardTitle>
             <CardDescription>Define the fee structure for each academic year of the student's course.</CardDescription>
           </div>
-          <Dialog open={feeTypeDialogOpen} onOpenChange={setFeeTypeDialogOpen}>
-            <DialogTrigger asChild>
-              <Button type="button" size="sm" variant="outline" className="gap-1">
-                <PlusCircle className="h-4 w-4" /> Add Fee Type
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Add New Fee Type</DialogTitle></DialogHeader>
-              <div className="space-y-2">
-                <Label htmlFor="fee-type-name">Fee Type Name</Label>
-                <Input id="fee-type-name" value={newFeeTypeName} onChange={(e) => setNewFeeTypeName(e.target.value)} placeholder="e.g., Exam Fee" />
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setFeeTypeDialogOpen(false)}>Cancel</Button>
-                <Button type="button" onClick={handleAddFeeType}>Add Fee Type</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            <Dialog open={yearDialogOpen} onOpenChange={setYearDialogOpen}>
+              <DialogTrigger asChild>
+                <Button type="button" size="sm" variant="outline" className="gap-1">
+                  <PlusCircle className="h-4 w-4" /> Add Year
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Add New Year</DialogTitle></DialogHeader>
+                <div className="space-y-2">
+                  <Label htmlFor="year-name">Year Name</Label>
+                  <Input id="year-name" value={newYearName} onChange={(e) => setNewYearName(e.target.value)} placeholder="e.g., 4th Year" />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setYearDialogOpen(false)}>Cancel</Button>
+                  <Button type="button" onClick={handleAddYear}>Add Year</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={feeTypeDialogOpen} onOpenChange={setFeeTypeDialogOpen}>
+              <DialogTrigger asChild>
+                <Button type="button" size="sm" variant="outline" className="gap-1">
+                  <PlusCircle className="h-4 w-4" /> Add Fee Type
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Add New Fee Type</DialogTitle></DialogHeader>
+                <div className="space-y-2">
+                  <Label htmlFor="fee-type-name">Fee Type Name</Label>
+                  <Input id="fee-type-name" value={newFeeTypeName} onChange={(e) => setNewFeeTypeName(e.target.value)} placeholder="e.g., Exam Fee" />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setFeeTypeDialogOpen(false)}>Cancel</Button>
+                  <Button type="button" onClick={handleAddFeeType}>Add Fee Type</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -161,7 +204,7 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
             <TableHeader>
               <TableRow>
                 <TableHead className="sticky left-0 z-10 bg-background border-r min-w-[200px]">Fee Type</TableHead>
-                {FIXED_YEARS.map(year => (
+                {years.map(year => (
                   <TableHead key={year} className="text-center border-l min-w-[150px]">
                     {year}
                   </TableHead>
@@ -192,7 +235,7 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
                       )}
                     </div>
                   </TableCell>
-                  {FIXED_YEARS.map(year => {
+                  {years.map(year => {
                     const item = getFeeItem(year, feeType);
                     return (
                       <TableCell key={year} className="border-l">
@@ -210,7 +253,7 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
               {/* Special row for Concession */}
               <TableRow>
                 <TableCell className="font-medium sticky left-0 z-10 bg-background border-r">Concession</TableCell>
-                {FIXED_YEARS.map(year => {
+                {years.map(year => {
                   const tuitionFeeItem = getFeeItem(year, 'Tuition Fee');
                   return (
                     <TableCell key={year} className="border-l">
