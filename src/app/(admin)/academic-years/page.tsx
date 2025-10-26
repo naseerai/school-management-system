@@ -61,13 +61,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-
-export type AcademicYear = {
-  id: string;
-  year_name: string;
-  is_active: boolean;
-  created_at: string;
-};
+import { AcademicYear } from "@/types";
 
 const formSchema = z.object({
   year_name: z.string().min(1, "Academic year is required").regex(/^\d{4}-\d{4}$/, "Format must be YYYY-YYYY"),

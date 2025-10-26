@@ -16,9 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { AcademicYear } from "../academic-years/page";
+import { AcademicYear } from "@/types";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 // Schemas
@@ -476,7 +475,11 @@ export default function FeeCollectionPage() {
                 <Form {...editConcessionForm}>
                     <form onSubmit={editConcessionForm.handleSubmit(onEditConcessionSubmit)} className="space-y-4">
                         <FormField control={editConcessionForm.control} name="amount" render={({ field }) => (
-                            <FormItem><Label>Concession Amount</Label><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem>
+                                <FormLabel>Concession Amount</FormLabel>
+                                <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
                         )} />
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setEditConcessionDialogOpen(false)}>Cancel</Button>
