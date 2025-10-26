@@ -225,10 +225,12 @@ export default function FeeCollectionPage() {
 
   const onPaymentSubmit = async (values: z.infer<typeof paymentSchema>) => {
     const studentRecordForPayment = studentRecords.find(r => r.studying_year === values.payment_year) || studentRecords[studentRecords.length - 1];
-    if (!studentRecordForPayment || !sessionUser) {
-      toast.error("Cannot process payment: Student record not found.");
+    
+    if (!studentRecordForPayment || !sessionUser || !cashierProfile) {
+      toast.error("Cannot process payment: Student or Cashier profile not found. Please search for the student again or re-login.");
       return;
     }
+
     setIsSubmitting(true);
 
     const feeTypeForDb = values.payment_year === 'Other' 
@@ -241,7 +243,7 @@ export default function FeeCollectionPage() {
         notes: values.notes,
         fee_type: feeTypeForDb,
         student_id: studentRecordForPayment.id,
-        cashier_id: cashierProfile?.id
+        cashier_id: cashierProfile.id
     };
 
     const { error } = await supabase.from("payments").insert([paymentData]);
@@ -435,7 +437,7 @@ export default function FeeCollectionPage() {
                       {watchedPaymentYear && watchedPaymentYear !== 'Other' && (
                         <FormField control={paymentForm.control} name="fee_item_name" render={({ field }) => (
                           <FormItem><FormLabel>Fee Item</FormLabel>
-                            <Select onValueChange={handleFeeItemChange} value={field.value}>
+                            <Select onValueChange={(value) => handleFeeItemChange(value)} value={field.value}>
                               <FormControl><SelectTrigger><SelectValue placeholder="Select fee item..." /></SelectTrigger></FormControl>
                               <SelectContent>
                                 {(masterFeeDetails[watchedPaymentYear] || []).map(item => <SelectItem key={item.id} value={item.name}>{item.name}</SelectItem>)}
