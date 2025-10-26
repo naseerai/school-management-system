@@ -27,14 +27,11 @@ const searchSchema = z.object({
 });
 
 const paymentSchema = z.object({
-  fee_type: z.string().min(1, "Fee type is required"),
-  other_fee_description: z.string().optional(),
+  payment_year: z.string().min(1, "Please select a year or 'Other'"),
+  fee_item_name: z.string().min(1, "This field is required"),
   amount: z.coerce.number().min(1, "Amount must be greater than 0"),
   payment_method: z.enum(["cash", "upi"]),
   notes: z.string().optional(),
-}).refine(data => !(data.fee_type === 'Other' && !data.other_fee_description?.trim()), {
-    message: "Description is required for 'Other' fee type.",
-    path: ["other_fee_description"],
 });
 
 const editConcessionSchema = z.object({
@@ -80,24 +77,25 @@ const calculateFinancials = (studentRecords: StudentDetails[], allPayments: Paym
     }
 
     const masterFeeDetails = studentRecords[studentRecords.length - 1].fee_details || {};
-    const studentIdToYearMap = new Map(studentRecords.map(r => [r.id, r.studying_year]));
-
-    const paymentsByYear: { [year: string]: number } = {};
+    
+    const paymentsByFeeType: { [type: string]: number } = {};
     allPayments.forEach(p => {
-        const studyingYear = studentIdToYearMap.get(p.student_id);
-        if (studyingYear) {
-            paymentsByYear[studyingYear] = (paymentsByYear[studyingYear] || 0) + p.amount;
-        }
+        paymentsByFeeType[p.fee_type] = (paymentsByFeeType[p.fee_type] || 0) + p.amount;
     });
 
     const yearlySummaries: YearlySummary[] = Object.entries(masterFeeDetails).map(([year, feeItems]) => {
         const totalDue = feeItems.reduce((sum, item) => sum + item.amount, 0);
         const totalConcession = feeItems.reduce((sum, item) => sum + (item.concession || 0), 0);
-        const totalPaid = paymentsByYear[year] || 0;
-        const balance = totalDue - totalConcession - totalPaid;
+        
+        const totalPaidForYear = feeItems.reduce((sum, item) => {
+            const feeTypeString = `${year} - ${item.name}`;
+            return sum + (paymentsByFeeType[feeTypeString] || 0);
+        }, 0);
+
+        const balance = totalDue - totalConcession - totalPaidForYear;
         const studentRecordForYear = studentRecords.find(r => r.studying_year === year);
 
-        return { year, feeItems, totalDue, totalConcession, totalPaid, balance, studentRecordForYear };
+        return { year, feeItems, totalDue, totalConcession, totalPaid: totalPaidForYear, balance, studentRecordForYear };
     });
 
     const overallTotalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);
@@ -132,8 +130,10 @@ export default function FeeCollectionPage() {
   const [concessionContext, setConcessionContext] = useState<{ fee: FeeItem; studentRecord: StudentDetails } | null>(null);
 
   const searchForm = useForm<z.infer<typeof searchSchema>>({ resolver: zodResolver(searchSchema), defaultValues: { academic_year_id: "", roll_number: "" } });
-  const paymentForm = useForm<z.infer<typeof paymentSchema>>({ resolver: zodResolver(paymentSchema), defaultValues: { amount: 0, payment_method: "cash", notes: "", fee_type: "", other_fee_description: "" } });
+  const paymentForm = useForm<z.infer<typeof paymentSchema>>({ resolver: zodResolver(paymentSchema), defaultValues: { amount: 0, payment_method: "cash", notes: "", payment_year: "", fee_item_name: "" } });
   const editConcessionForm = useForm<z.infer<typeof editConcessionSchema>>({ resolver: zodResolver(editConcessionSchema), defaultValues: { amount: 0 } });
+
+  const watchedPaymentYear = paymentForm.watch("payment_year");
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -224,28 +224,33 @@ export default function FeeCollectionPage() {
   };
 
   const onPaymentSubmit = async (values: z.infer<typeof paymentSchema>) => {
-    const currentYearRecord = studentRecords.find(r => r.academic_years?.is_active);
-    if (!currentYearRecord || !sessionUser) {
-      toast.error("Cannot process payment: No active academic year found for this student.");
+    const studentRecordForPayment = studentRecords.find(r => r.studying_year === values.payment_year) || studentRecords[studentRecords.length - 1];
+    if (!studentRecordForPayment || !sessionUser) {
+      toast.error("Cannot process payment: Student record not found.");
       return;
     }
     setIsSubmitting(true);
 
+    const feeTypeForDb = values.payment_year === 'Other' 
+        ? values.fee_item_name 
+        : `${values.payment_year} - ${values.fee_item_name}`;
+
     const paymentData = {
-        ...values,
-        fee_type: values.fee_type === 'Other' ? values.other_fee_description || 'Other' : values.fee_type,
-        student_id: currentYearRecord.id,
+        amount: values.amount,
+        payment_method: values.payment_method,
+        notes: values.notes,
+        fee_type: feeTypeForDb,
+        student_id: studentRecordForPayment.id,
         cashier_id: cashierProfile?.id
     };
-    delete (paymentData as any).other_fee_description;
 
     const { error } = await supabase.from("payments").insert([paymentData]);
     if (error) {
       toast.error(`Payment failed: ${error.message}`);
     } else {
       toast.success("Payment recorded successfully!");
-      await logActivity("Fee Collection", values, currentYearRecord.id);
-      paymentForm.reset({ amount: 0, payment_method: "cash", notes: "", fee_type: "", other_fee_description: "" });
+      await logActivity("Fee Collection", { ...values, fee_type: feeTypeForDb }, studentRecordForPayment.id);
+      paymentForm.reset({ amount: 0, payment_method: "cash", notes: "", payment_year: "", fee_item_name: "" });
       await fetchStudentFinancials(studentRecords.map(s => s.id));
     }
     setIsSubmitting(false);
@@ -292,22 +297,30 @@ export default function FeeCollectionPage() {
 
   const currentYearRecord = useMemo(() => studentRecords.find(r => r.academic_years?.is_active), [studentRecords]);
   
-  const allFeeItemsForStudent = useMemo(() => {
-    if (studentRecords.length === 0) return [];
-    const masterFeeDetails = studentRecords[studentRecords.length - 1].fee_details || {};
-    const items: { label: string; value: string }[] = [];
-    Object.entries(masterFeeDetails).forEach(([year, feeItems]) => {
-      feeItems.forEach(item => {
-        items.push({
-          label: `${year} - ${item.name}`,
-          value: `${year} - ${item.name}`,
-        });
-      });
-    });
-    return items;
+  const masterFeeDetails = useMemo(() => {
+    if (studentRecords.length === 0) return {};
+    return studentRecords[studentRecords.length - 1].fee_details || {};
   }, [studentRecords]);
 
-  const watchedFeeType = paymentForm.watch("fee_type");
+  const handleFeeItemChange = (feeItemName: string) => {
+    paymentForm.setValue('fee_item_name', feeItemName);
+    const year = paymentForm.getValues("payment_year");
+    if (!year || year === 'Other') return;
+
+    const feeItemsForYear = masterFeeDetails[year] || [];
+    const selectedFeeItem = feeItemsForYear.find(item => item.name === feeItemName);
+
+    if (selectedFeeItem) {
+        const feeTypeString = `${year} - ${feeItemName}`;
+        const paidForThisItem = payments
+            .filter(p => p.fee_type === feeTypeString)
+            .reduce((sum, p) => sum + p.amount, 0);
+        
+        const balance = (selectedFeeItem.amount - (selectedFeeItem.concession || 0)) - paidForThisItem;
+        
+        paymentForm.setValue('amount', Math.max(0, parseFloat(balance.toFixed(2))));
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -344,34 +357,6 @@ export default function FeeCollectionPage() {
               <div><p className="font-medium">Student Type</p><p>{studentRecords[0].student_types?.name}</p></div>
             </CardContent>
           </Card>
-
-          {invoices.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Outstanding Invoices</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invoices.map(invoice => (
-                      <TableRow key={invoice.id}>
-                        <TableCell>{invoice.batch_description}</TableCell>
-                        <TableCell>{new Date(invoice.due_date).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">{invoice.total_amount.toFixed(2)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
@@ -427,48 +412,64 @@ export default function FeeCollectionPage() {
               </Accordion>
             </div>
             <div className="space-y-6">
-              {currentYearRecord && (
-                <Card>
-                  <CardHeader><CardTitle>Collect Other Payments</CardTitle></CardHeader>
-                  <CardContent>
-                    <Form {...paymentForm}>
-                      <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
-                        <FormField control={paymentForm.control} name="fee_type" render={({ field }) => (
-                          <FormItem><FormLabel>Fee Type</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl><SelectTrigger><SelectValue placeholder="Select fee type..." /></SelectTrigger></FormControl>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Others</CardTitle>
+                  <CardDescription>Collect payment for a specific fee or add a miscellaneous charge.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Form {...paymentForm}>
+                    <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
+                      <FormField control={paymentForm.control} name="payment_year" render={({ field }) => (
+                        <FormItem><FormLabel>Year / Type</FormLabel>
+                          <Select onValueChange={(value) => { field.onChange(value); paymentForm.setValue("fee_item_name", ""); paymentForm.setValue("amount", 0); }} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl>
+                            <SelectContent>
+                              {Object.keys(masterFeeDetails).map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        <FormMessage /></FormItem>
+                      )} />
+
+                      {watchedPaymentYear && watchedPaymentYear !== 'Other' && (
+                        <FormField control={paymentForm.control} name="fee_item_name" render={({ field }) => (
+                          <FormItem><FormLabel>Fee Item</FormLabel>
+                            <Select onValueChange={handleFeeItemChange} value={field.value}>
+                              <FormControl><SelectTrigger><SelectValue placeholder="Select fee item..." /></SelectTrigger></FormControl>
                               <SelectContent>
-                                {allFeeItemsForStudent.map(ft => <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>)}
-                                <SelectItem value="Other">Other</SelectItem>
+                                {(masterFeeDetails[watchedPaymentYear] || []).map(item => <SelectItem key={item.id} value={item.name}>{item.name}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           <FormMessage /></FormItem>
                         )} />
-                        {watchedFeeType === 'Other' && (
-                          <FormField control={paymentForm.control} name="other_fee_description" render={({ field }) => (
-                              <FormItem><FormLabel>Fee Description</FormLabel><FormControl><Input placeholder="e.g., Fine for late submission" {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                        )}
-                        <FormField control={paymentForm.control} name="amount" render={({ field }) => (
-                          <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                      )}
+
+                      {watchedPaymentYear === 'Other' && (
+                        <FormField control={paymentForm.control} name="fee_item_name" render={({ field }) => (
+                            <FormItem><FormLabel>Fee Description</FormLabel><FormControl><Input placeholder="e.g., Fine for late submission" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <FormField control={paymentForm.control} name="payment_method" render={({ field }) => (
-                          <FormItem><FormLabel>Payment Method</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                              <SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem></SelectContent>
-                            </Select>
-                          <FormMessage /></FormItem>
-                        )} />
-                        <FormField control={paymentForm.control} name="notes" render={({ field }) => (
-                          <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? "Processing..." : "Collect Payment"}</Button>
-                      </form>
-                    </Form>
-                  </CardContent>
-                </Card>
-              )}
+                      )}
+
+                      <FormField control={paymentForm.control} name="amount" render={({ field }) => (
+                        <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={paymentForm.control} name="payment_method" render={({ field }) => (
+                        <FormItem><FormLabel>Payment Method</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem></SelectContent>
+                          </Select>
+                        <FormMessage /></FormItem>
+                      )} />
+                      <FormField control={paymentForm.control} name="notes" render={({ field }) => (
+                        <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? "Processing..." : "Collect Payment"}</Button>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
               <Card>
                 <CardHeader><CardTitle>Overall Payment History</CardTitle></CardHeader>
                 <CardContent>
