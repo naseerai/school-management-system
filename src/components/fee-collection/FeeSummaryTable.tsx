@@ -17,7 +17,6 @@ type FeeSummaryCell = {
   total: number;
   paid: number;
   pending: number;
-  concession: number;
 };
 
 export type FeeSummaryTableData = {
@@ -49,7 +48,7 @@ interface FeeSummaryTableProps {
   onPay: (feeType: string) => void;
   onCollectOther: () => void;
   hasDiscountPermission: boolean;
-  onEditConcession: (feeType: string, year: string) => void;
+  onEditConcession: (year: string) => void;
 }
 
 export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermission, onEditConcession }: FeeSummaryTableProps) {
@@ -73,7 +72,7 @@ export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermis
               <TableRow>
                 <TableHead rowSpan={2} className="sticky left-0 z-10 bg-background border-r min-w-[150px] align-middle">Fee Type</TableHead>
                 {years.map(year => (
-                  <TableHead key={year} colSpan={4} className="text-center border-l">{year}</TableHead>
+                  <TableHead key={year} colSpan={3} className="text-center border-l">{year}</TableHead>
                 ))}
                 <TableHead rowSpan={2} className="border-l align-middle">Overall Balance</TableHead>
                 <TableHead rowSpan={2} className="border-l align-middle">Actions</TableHead>
@@ -82,7 +81,6 @@ export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermis
                 {years.map(year => (
                     <React.Fragment key={`${year}-cols`}>
                         <TableHead className="text-center border-l">Total</TableHead>
-                        <TableHead className="text-center">Concession</TableHead>
                         <TableHead className="text-center">Paid</TableHead>
                         <TableHead className="text-center">Balance</TableHead>
                     </React.Fragment>
@@ -94,22 +92,12 @@ export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermis
                 <TableRow key={feeType}>
                   <TableCell className="font-medium sticky left-0 z-10 bg-background border-r">{feeType}</TableCell>
                   {years.map(year => {
-                    const cell = cellData[year]?.[feeType] || { total: 0, paid: 0, pending: 0, concession: 0 };
+                    const cell = cellData[year]?.[feeType] || { total: 0, paid: 0, pending: 0 };
                     return (
                       <React.Fragment key={year}>
                         <TableCell className="text-center border-l">{cell.total.toFixed(2)}</TableCell>
-                        <TableCell className="text-center text-orange-600 border-l">
-                          <div className="flex items-center justify-center gap-1">
-                            <span>{cell.concession.toFixed(2)}</span>
-                            {hasDiscountPermission && (
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditConcession(feeType, year)}>
-                                    <Pencil className="h-3 w-3" />
-                                </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center text-green-600 border-l">{cell.paid.toFixed(2)}</TableCell>
-                        <TableCell className="text-center text-red-600 font-medium border-l">{cell.pending.toFixed(2)}</TableCell>
+                        <TableCell className="text-center text-green-600">{cell.paid.toFixed(2)}</TableCell>
+                        <TableCell className="text-center text-red-600 font-medium">{cell.pending.toFixed(2)}</TableCell>
                       </React.Fragment>
                     );
                   })}
@@ -125,15 +113,35 @@ export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermis
                 </TableRow>
               ))}
               
+              <TableRow className="bg-muted/50 font-semibold">
+                <TableCell className="sticky left-0 z-10 bg-muted/50 border-r">Concession</TableCell>
+                {years.map(year => (
+                  <TableCell key={year} colSpan={3} className="text-center text-orange-600 border-l">
+                    <div className="flex items-center justify-center gap-1">
+                        <span>- {yearlyTotals[year].concession.toFixed(2)}</span>
+                        {hasDiscountPermission && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditConcession(year)}>
+                                <Pencil className="h-3 w-3" />
+                            </Button>
+                        )}
+                    </div>
+                  </TableCell>
+                ))}
+                <TableCell className="text-center text-orange-600 border-l">
+                  - {overallTotals.concession.toFixed(2)}
+                </TableCell>
+                <TableCell className="border-l"></TableCell>
+              </TableRow>
+
               <TableRow className="bg-muted/50 font-bold text-sm">
                 <TableCell className="sticky left-0 z-10 bg-muted/50 border-r">Fee Due</TableCell>
                 {years.map(year => {
                   const yearTotal = yearlyTotals[year];
                   return (
                     <React.Fragment key={year}>
-                        <TableCell colSpan={2} className="text-center border-l">{(yearTotal.total - yearTotal.concession).toFixed(2)}</TableCell>
-                        <TableCell className="text-center text-green-600 border-l">{yearTotal.paid.toFixed(2)}</TableCell>
-                        <TableCell className="text-center text-red-600 border-l">{yearTotal.pending.toFixed(2)}</TableCell>
+                        <TableCell className="text-center border-l">{(yearTotal.total - yearTotal.concession).toFixed(2)}</TableCell>
+                        <TableCell className="text-center text-green-600">{yearTotal.paid.toFixed(2)}</TableCell>
+                        <TableCell className="text-center text-red-600">{yearTotal.pending.toFixed(2)}</TableCell>
                     </React.Fragment>
                   );
                 })}

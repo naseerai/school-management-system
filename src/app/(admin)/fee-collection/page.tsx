@@ -78,7 +78,7 @@ export default function FeeCollectionPage() {
   const [cashierProfile, setCashierProfile] = useState<CashierProfile | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editConcessionDialogOpen, setEditConcessionDialogOpen] = useState(false);
-  const [concessionContext, setConcessionContext] = useState<{ feeType: string; year: string; feeItem: FeeItem; studentRecord: StudentDetails } | null>(null);
+  const [concessionContext, setConcessionContext] = useState<{ year: string; studentRecord: StudentDetails } | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [invoicePaymentDialogOpen, setInvoicePaymentDialogOpen] = useState(false);
   const [invoiceToPay, setInvoiceToPay] = useState<Invoice | null>(null);
@@ -218,41 +218,48 @@ export default function FeeCollectionPage() {
     setIsSubmitting(false);
   };
 
-  const handleEditConcessionClick = (feeType: string, year: string) => {
-    const studentRecord = studentRecords.find(r => r.studying_year === year);
-    const feeItem = studentRecord?.fee_details[year]?.find(f => f.name === feeType);
-
-    if (!studentRecord || !feeItem) {
-        toast.error("Could not find the specific fee item to update.");
-        return;
-    }
-    setConcessionContext({ feeType, year, feeItem, studentRecord });
-    editConcessionForm.setValue('amount', feeItem.concession || 0);
+  const handleEditYearlyConcessionClick = (year: string) => {
+    if (studentRecords.length === 0) return;
+    const masterStudentRecord = studentRecords[studentRecords.length - 1];
+    
+    setConcessionContext({ year, studentRecord: masterStudentRecord });
+    
+    const feeItems = masterStudentRecord.fee_details[year] || [];
+    const totalConcession = feeItems.reduce((sum, item) => sum + (item.concession || 0), 0);
+    editConcessionForm.setValue('amount', totalConcession);
     setEditConcessionDialogOpen(true);
   };
 
   const onEditConcessionSubmit = async (values: z.infer<typeof editConcessionSchema>) => {
-    if (!concessionContext) return;
-    const { feeItem, studentRecord } = concessionContext;
-    
+    if (!concessionContext || studentRecords.length === 0) return;
+    const { year } = concessionContext;
+    const masterStudentRecord = studentRecords[studentRecords.length - 1];
+
     setIsSubmitting(true);
-    const response = await fetch(`/api/students/${studentRecord.id}/concession`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            year: studentRecord.studying_year,
-            feeItemId: feeItem.id,
-            concession: values.amount,
-        }),
+
+    const newFeeDetails = JSON.parse(JSON.stringify(masterStudentRecord.fee_details));
+    const feeItemsForYear = newFeeDetails[year];
+
+    if (!feeItemsForYear || feeItemsForYear.length === 0) {
+        toast.error(`No fee items found for ${year} to apply concession.`);
+        setIsSubmitting(false);
+        return;
+    }
+
+    feeItemsForYear.forEach((item: FeeItem, index: number) => {
+        item.concession = (index === 0) ? values.amount : 0;
     });
 
-    const result = await response.json();
+    const { error } = await supabase
+        .from('students')
+        .update({ fee_details: newFeeDetails })
+        .eq('id', masterStudentRecord.id);
 
-    if (!response.ok) {
-        toast.error(`Failed to update concession: ${result.error}`);
+    if (error) {
+        toast.error(`Failed to update concession: ${error.message}`);
     } else {
         toast.success("Concession updated successfully!");
-        await logActivity("Concession Edited", { fee: feeItem.name, year: studentRecord.studying_year, amount: values.amount }, studentRecord.id);
+        await logActivity("Yearly Concession Edited", { year, amount: values.amount }, masterStudentRecord.id);
         setEditConcessionDialogOpen(false);
         await refetchStudent();
     }
@@ -370,13 +377,13 @@ export default function FeeCollectionPage() {
                 const paid = paymentsByFeeType[`${year} - ${feeType}`] || 0;
                 const pending = Math.max(0, total - concession - paid);
 
-                cellData[year][feeType] = { total, paid, pending, concession };
+                cellData[year][feeType] = { total, paid, pending };
 
                 yearlyTotals[year].total += total;
                 yearlyTotals[year].paid += paid;
                 yearlyTotals[year].concession += concession;
             } else {
-                cellData[year][feeType] = { total: 0, paid: 0, pending: 0, concession: 0 };
+                cellData[year][feeType] = { total: 0, paid: 0, pending: 0 };
             }
         });
         yearlyTotals[year].pending = Math.max(0, yearlyTotals[year].total - yearlyTotals[year].concession - yearlyTotals[year].paid);
@@ -483,7 +490,7 @@ export default function FeeCollectionPage() {
                 onPay={handlePayClick} 
                 onCollectOther={handleCollectOtherClick}
                 hasDiscountPermission={cashierProfile?.has_discount_permission || false}
-                onEditConcession={handleEditConcessionClick}
+                onEditConcession={handleEditYearlyConcessionClick}
             />
             
             {invoices.length > 0 && (
@@ -524,11 +531,11 @@ export default function FeeCollectionPage() {
 
           <Dialog open={editConcessionDialogOpen} onOpenChange={setEditConcessionDialogOpen}>
             <DialogContent>
-                <DialogHeader><DialogTitle>Edit Concession for {concessionContext?.feeType} ({concessionContext?.year})</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>Edit Concession for {concessionContext?.year}</DialogTitle></DialogHeader>
                 <Form {...editConcessionForm}>
                     <form onSubmit={editConcessionForm.handleSubmit(onEditConcessionSubmit)} className="space-y-4">
                         <FormField control={editConcessionForm.control} name="amount" render={({ field }) => (
-                            <FormItem><Label>Concession Amount</Label><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><Label>Total Concession Amount</Label><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setEditConcessionDialogOpen(false)}>Cancel</Button>
