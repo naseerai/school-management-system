@@ -350,7 +350,7 @@ export default function FeeCollectionPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader><CardTitle>Student Fee Collection</CardTitle><CardDescription>Search for a student to collect fees.</CardDescription></CardDescription></CardHeader>
+        <CardHeader><CardTitle>Student Fee Collection</CardTitle><CardDescription>Search for a student to collect fees.</CardDescription></CardHeader>
         <CardContent>
           <fieldset disabled={isInitializing}>
             <Form {...searchForm}>
