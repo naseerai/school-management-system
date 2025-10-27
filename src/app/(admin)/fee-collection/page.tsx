@@ -35,7 +35,7 @@ export default function FeeCollectionPage() {
   }
 
   return (
-    <div className="space-y-6 fee-collection-page">
+    <div className="space-y-6">
       <StudentSearch
         academicYears={academicYears}
         onSearch={searchStudent}
@@ -46,7 +46,7 @@ export default function FeeCollectionPage() {
       {hasStudent && (
         <>
           <StudentDetailsCard student={studentRecords[0]} />
-          <div className="space-y-6 print:hidden">
+          <div className="space-y-6">
             <FeeSummary
               studentRecords={studentRecords}
               payments={payments}
