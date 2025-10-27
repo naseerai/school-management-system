@@ -4,7 +4,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Print } from "lucide-react";
+import { Printer } from "lucide-react";
 import { Payment, StudentDetails } from "@/types";
 import { PrintableReceipt } from "./PrintableReceipt";
 
@@ -22,7 +22,7 @@ export function PaymentHistory({ payments, student }: PaymentHistoryProps) {
             <CardTitle>Overall Payment History</CardTitle>
           </div>
           <Button variant="outline" size="icon" onClick={() => window.print()}>
-            <Print className="h-4 w-4" />
+            <Printer className="h-4 w-4" />
             <span className="sr-only">Print Receipt</span>
           </Button>
         </CardHeader>
