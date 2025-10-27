@@ -2,13 +2,13 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StudentDetails as StudentDetailsType } from "@/hooks/use-fee-collection";
+import { StudentDetails } from "@/types";
 
-interface StudentDetailsProps {
-  student: StudentDetailsType;
+interface StudentDetailsCardProps {
+  student: StudentDetails;
 }
 
-export function StudentDetails({ student }: StudentDetailsProps) {
+export function StudentDetailsCard({ student }: StudentDetailsCardProps) {
   return (
     <Card className="print:hidden">
       <CardHeader><CardTitle>Student Details</CardTitle></CardHeader>

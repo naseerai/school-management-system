@@ -2,7 +2,7 @@
 
 import { useFeeCollection } from "@/hooks/use-fee-collection";
 import { StudentSearch } from "@/components/fee-collection/StudentSearch";
-import { StudentDetails } from "@/components/fee-collection/StudentDetails";
+import { StudentDetailsCard } from "@/components/fee-collection/StudentDetailsCard";
 import { FeeSummary } from "@/components/fee-collection/FeeSummary";
 import { OutstandingInvoices } from "@/components/fee-collection/OutstandingInvoices";
 import { PaymentHistory } from "@/components/fee-collection/PaymentHistory";
@@ -45,7 +45,7 @@ export default function FeeCollectionPage() {
 
       {hasStudent && (
         <>
-          <StudentDetails student={studentRecords[0]} />
+          <StudentDetailsCard student={studentRecords[0]} />
           <div className="space-y-6 print:hidden">
             <FeeSummary
               studentRecords={studentRecords}
