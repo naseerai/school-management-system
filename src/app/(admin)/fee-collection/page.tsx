@@ -7,6 +7,7 @@ import { FeeSummary } from "@/components/fee-collection/FeeSummary";
 import { OutstandingInvoices } from "@/components/fee-collection/OutstandingInvoices";
 import { PaymentHistory } from "@/components/fee-collection/PaymentHistory";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { BulkPaymentUpload } from "@/components/fee-collection/BulkPaymentUpload";
 
 export default function FeeCollectionPage() {
   const { state, actions } = useFeeCollection();
@@ -43,6 +44,8 @@ export default function FeeCollectionPage() {
         isInitializing={isInitializing}
       />
 
+      <BulkPaymentUpload cashierProfile={cashierProfile} academicYears={academicYears} />
+
       {hasStudent && (
         <>
           <StudentDetailsCard student={studentRecords[0]} />
@@ -70,4 +73,3 @@ export default function FeeCollectionPage() {
       )}
     </div>
   );
-}
