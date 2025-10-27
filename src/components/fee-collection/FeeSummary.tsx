@@ -1,0 +1,115 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { FeeSummaryTable, FeeSummaryTableData } from "@/components/fee-collection/FeeSummaryTable";
+import { PaymentDialog } from "@/components/fee-collection/PaymentDialog";
+import { EditConcessionDialog } from "@/components/fee-collection/EditConcessionDialog";
+import { StudentDetails, Payment, CashierProfile } from "@/hooks/use-fee-collection";
+
+interface FeeSummaryProps {
+  studentRecords: StudentDetails[];
+  payments: Payment[];
+  cashierProfile: CashierProfile | null;
+  onSuccess: () => void;
+  logActivity: (action: string, details: object, studentId: string) => Promise<void>;
+}
+
+export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess, logActivity }: FeeSummaryProps) {
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [editConcessionDialogOpen, setEditConcessionDialogOpen] = useState(false);
+  const [paymentDialogInitialState, setPaymentDialogInitialState] = useState<{ fee_item_name: string, payment_year: string } | null>(null);
+
+  const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
+    if (studentRecords.length === 0) return null;
+
+    const masterFeeDetails = studentRecords[studentRecords.length - 1].fee_details || {};
+    const years = Object.keys(masterFeeDetails).sort();
+    const allFeeTypeNames = new Set<string>();
+    Object.values(masterFeeDetails).forEach(items => {
+        items.forEach(item => allFeeTypeNames.add(item.name));
+    });
+    const feeTypes = Array.from(allFeeTypeNames).sort();
+
+    const paymentsByFeeType: { [type: string]: number } = {};
+    payments.forEach(p => {
+        paymentsByFeeType[p.fee_type] = (paymentsByFeeType[p.fee_type] || 0) + p.amount;
+    });
+
+    const cellData: FeeSummaryTableData['cellData'] = {};
+    const yearlyTotals: FeeSummaryTableData['yearlyTotals'] = {};
+
+    years.forEach(year => {
+        cellData[year] = {};
+        yearlyTotals[year] = { total: 0, paid: 0, pending: 0, concession: 0 };
+        const feeItemsForYear = masterFeeDetails[year] || [];
+
+        feeTypes.forEach(feeType => {
+            const feeItem = feeItemsForYear.find(item => item.name === feeType);
+            if (feeItem) {
+                const total = feeItem.amount;
+                const concession = feeItem.concession || 0;
+                const paid = paymentsByFeeType[`${year} - ${feeType}`] || 0;
+                const pending = Math.max(0, total - concession - paid);
+
+                cellData[year][feeType] = { total, paid, pending };
+
+                yearlyTotals[year].total += total;
+                yearlyTotals[year].paid += paid;
+                yearlyTotals[year].concession += concession;
+            } else {
+                cellData[year][feeType] = { total: 0, paid: 0, pending: 0 };
+            }
+        });
+        yearlyTotals[year].pending = Math.max(0, yearlyTotals[year].total - yearlyTotals[year].concession - yearlyTotals[year].paid);
+    });
+
+    const overallTotals: FeeSummaryTableData['overallTotals'] = { total: 0, paid: 0, pending: 0, concession: 0 };
+    Object.values(yearlyTotals).forEach(yearTotal => {
+        overallTotals.total += yearTotal.total;
+        overallTotals.paid += yearTotal.paid;
+        overallTotals.concession += yearTotal.concession;
+    });
+    overallTotals.pending = Math.max(0, overallTotals.total - overallTotals.concession - overallTotals.paid);
+
+    return { years, feeTypes, cellData, yearlyTotals, overallTotals };
+  }, [studentRecords, payments]);
+
+  const handlePayClick = (feeType: string) => {
+    setPaymentDialogInitialState({ fee_item_name: feeType, payment_year: "" });
+    setPaymentDialogOpen(true);
+  };
+
+  const handleCollectOtherClick = () => {
+    setPaymentDialogInitialState({ fee_item_name: "", payment_year: "Other" });
+    setPaymentDialogOpen(true);
+  };
+
+  return (
+    <>
+      <FeeSummaryTable
+        data={feeSummaryData}
+        onPay={handlePayClick}
+        onCollectOther={handleCollectOtherClick}
+        hasDiscountPermission={cashierProfile?.has_discount_permission || false}
+        onEditConcession={() => setEditConcessionDialogOpen(true)}
+      />
+      <PaymentDialog
+        open={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
+        studentRecords={studentRecords}
+        payments={payments}
+        cashierProfile={cashierProfile}
+        onSuccess={onSuccess}
+        logActivity={logActivity}
+        initialState={paymentDialogInitialState}
+      />
+      <EditConcessionDialog
+        open={editConcessionDialogOpen}
+        onOpenChange={setEditConcessionDialogOpen}
+        studentRecords={studentRecords}
+        onSuccess={onSuccess}
+        logActivity={logActivity}
+      />
+    </>
+  );
+}

@@ -1,21 +1,15 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StudentDetails as StudentDetailsType } from "@/hooks/use-fee-collection";
 
-type StudentDetails = {
-  name: string;
-  roll_number: string;
-  class: string;
-  student_types: { name: string } | null;
-};
-
-interface StudentDetailsCardProps {
-  student: StudentDetails;
+interface StudentDetailsProps {
+  student: StudentDetailsType;
 }
 
-export function StudentDetailsCard({ student }: StudentDetailsCardProps) {
+export function StudentDetails({ student }: StudentDetailsProps) {
   return (
-    <Card>
+    <Card className="print:hidden">
       <CardHeader><CardTitle>Student Details</CardTitle></CardHeader>
       <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
         <div><p className="font-medium">Name</p><p>{student.name}</p></div>
