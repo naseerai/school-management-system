@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,11 +19,66 @@ export function PaymentHistory({ payments, student }: PaymentHistoryProps) {
     setPaymentToPrint(payment);
     setTimeout(() => {
       window.print();
-    }, 50);
+      // Clear after printing
+      setTimeout(() => setPaymentToPrint(null), 100);
+    }, 100);
   };
 
   return (
     <>
+      <style jsx global>{`
+        @media print {
+          body {
+            background: white !important;
+            color: black !important;
+          }
+          
+          .print-hidden {
+            display: none !important;
+          }
+          
+          .print-only {
+            display: block !important;
+          }
+          
+          .print-container {
+            width: 100%;
+            background: white;
+            color: black;
+          }
+          
+          /* Force light theme for print */
+          * {
+            background: white !important;
+            color: black !important;
+            border-color: #e5e7eb !important;
+          }
+          
+          /* Preserve intentional backgrounds */
+          .bg-gray-50,
+          [class*="bg-"] {
+            background: #f9fafb !important;
+          }
+          
+          /* Page break control */
+          .print-receipt {
+            page-break-after: always;
+            break-after: always;
+          }
+          
+          .print-receipt:last-child {
+            page-break-after: auto;
+            break-after: auto;
+          }
+        }
+        
+        @media screen {
+          .print-only {
+            display: none !important;
+          }
+        }
+      `}</style>
+
       <Card className="print-hidden">
         <CardHeader>
           <CardTitle>Overall Payment History</CardTitle>
@@ -45,7 +99,7 @@ export function PaymentHistory({ payments, student }: PaymentHistoryProps) {
                   <TableRow key={p.id}>
                     <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>{p.fee_type}</TableCell>
-                    <TableCell className="text-right">{p.amount.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">₹{p.amount.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" onClick={() => handlePrint(p)}>
                         <Printer className="mr-2 h-4 w-4" />
@@ -65,10 +119,14 @@ export function PaymentHistory({ payments, student }: PaymentHistoryProps) {
       </Card>
 
       {paymentToPrint && (
-        <div className="hidden print-only">
+        <div className="print-only">
           <div className="print-container">
-            <PrintableReceipt student={student} payments={[paymentToPrint]} />
-            <PrintableReceipt student={student} payments={[paymentToPrint]} />
+            <div className="print-receipt">
+              <PrintableReceipt student={student} payments={[paymentToPrint]} />
+            </div>
+            <div className="print-receipt">
+              <PrintableReceipt student={student} payments={[paymentToPrint]} />
+            </div>
           </div>
         </div>
       )}
