@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useState, useMemo } from "react";
 import { FeeSummaryTable, FeeSummaryTableData } from "@/components/fee-collection/FeeSummaryTable";
 import { PaymentDialog } from "@/components/fee-collection/PaymentDialog";
