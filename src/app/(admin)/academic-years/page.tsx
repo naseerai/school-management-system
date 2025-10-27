@@ -78,7 +78,7 @@ export default function AcademicYearsPage() {
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [yearToDelete, setYearToDelete] = useState<AcademicYear | null>(null);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<z.input<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       year_name: "",
@@ -105,7 +105,7 @@ export default function AcademicYearsPage() {
     fetchAcademicYears();
   }, []);
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const onSubmit = async (values: z.input<typeof formSchema>) => {
     setIsSubmitting(true);
 
     if (editingYear) {

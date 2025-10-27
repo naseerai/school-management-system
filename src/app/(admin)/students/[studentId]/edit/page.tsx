@@ -41,7 +41,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { AcademicYear } from "../../academic-years/page";
+import { AcademicYear } from "@/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FeeStructureEditor } from "@/components/admin/fee-structure-editor";
 
@@ -61,8 +61,8 @@ const studentFormSchema = z.object({
   fee_details: z.any().optional(),
 });
 
-export default function EditStudentPage({ params }: { params: { studentId: string } }) {
-  const { studentId } = params;
+export default function EditStudentPage(props: { params: any }) {
+  const { studentId } = props.params;
 
   const [studentTypes, setStudentTypes] = useState<StudentType[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
@@ -206,7 +206,7 @@ export default function EditStudentPage({ params }: { params: { studentId: strin
   );
 }
 
-function StudentTypeCombobox({ studentTypes, value, onChange }: { studentTypes: StudentType[], value: string, onChange: (value: string) => void, onNewTypeAdded: () => void }) {
+function StudentTypeCombobox({ studentTypes, value, onChange, onNewTypeAdded }: { studentTypes: StudentType[], value: string, onChange: (value: string) => void, onNewTypeAdded: () => void }) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>

@@ -8,12 +8,9 @@ const supabaseAdmin = createClient(
   { auth: { persistSession: false } }
 );
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: { studentId: string } }
-) {
+export async function PATCH(request: Request, { params }: any) {
   try {
-    const { studentId } = params;
+    const { studentId } = params as { studentId: string };
     const { year, feeItemId, concession } = await request.json();
 
     if (!studentId || !year || !feeItemId || concession === undefined || concession < 0) {

@@ -97,7 +97,7 @@ export default function CashiersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<z.input<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { name: "", email: "", phone: "", has_discount_permission: false, password: "" },
   });
@@ -125,7 +125,7 @@ export default function CashiersPage() {
     fetchCashiers();
   }, [currentPage]);
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: z.input<typeof formSchema>) => {
     setIsSubmitting(true);
     
     if (editingCashier) {
@@ -194,7 +194,13 @@ export default function CashiersPage() {
 
   const handleEdit = (cashier: Cashier) => {
     setEditingCashier(cashier);
-    form.reset({ ...cashier, password: "" });
+    form.reset({
+      name: cashier.name,
+      email: cashier.email ?? "",
+      phone: cashier.phone ?? "",
+      has_discount_permission: cashier.has_discount_permission,
+      password: "",
+    });
     setDialogOpen(true);
   };
 

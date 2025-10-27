@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
@@ -34,12 +34,8 @@ type StudentInvoice = {
   };
 };
 
-export default function InvoiceBatchDetailPage({
-  params,
-}: {
-  params: { batchId: string };
-}) {
-  const { batchId } = use(params);
+export default function InvoiceBatchDetailPage(props: any) {
+  const { batchId } = props.params as { batchId: string };
   const [invoices, setInvoices] = useState<StudentInvoice[]>([]);
   const [batchDescription, setBatchDescription] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -48,19 +44,28 @@ export default function InvoiceBatchDetailPage({
   useEffect(() => {
     const fetchBatchDetails = async () => {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from("invoices")
-        .select("id, status, batch_description, students(roll_number, name)")
-        .eq("batch_id", batchId);
+        const { data, error } = await supabase
+          .from("invoices")
+          .select("id, status, batch_description, students(roll_number, name)")
+          .eq("batch_id", batchId);
 
-      if (error) {
-        toast.error("Failed to fetch batch details.");
-      } else {
-        setInvoices(data as StudentInvoice[] || []);
-        if (data && data.length > 0) {
-          setBatchDescription(data[0].batch_description || "Invoice Batch");
+        if (error) {
+          toast.error("Failed to fetch batch details.");
+        } else {
+          // Normalize Supabase response: students comes back as an array of related rows.
+          const normalized: StudentInvoice[] = (data || []).map((row: any) => ({
+            id: row.id,
+            status: row.status,
+            students: (row.students && Array.isArray(row.students) && row.students[0])
+              ? { roll_number: row.students[0].roll_number, name: row.students[0].name }
+              : { roll_number: "", name: "" },
+          }));
+
+          setInvoices(normalized);
+          if (data && data.length > 0) {
+            setBatchDescription(data[0].batch_description || "Invoice Batch");
+          }
         }
-      }
       setIsLoading(false);
     };
     fetchBatchDetails();
