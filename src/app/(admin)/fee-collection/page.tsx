@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
+import { Print } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { AcademicYear } from "@/types";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { FeeSummaryTable, FeeSummaryTableData } from "@/components/fee-collection/FeeSummaryTable";
+import { PrintableReceipt } from "@/components/fee-collection/PrintableReceipt";
 
 // Schemas
 const searchSchema = z.object({
@@ -450,8 +452,8 @@ export default function FeeCollectionPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="space-y-6 fee-collection-page">
+      <Card className="print:hidden">
         <CardHeader><CardTitle>Student Fee Collection</CardTitle><CardDescription>Search for a student to collect fees.</CardDescription></CardHeader>
         <CardContent>
           <fieldset disabled={isInitializing}>
@@ -477,7 +479,7 @@ export default function FeeCollectionPage() {
 
       {studentRecords.length > 0 && (
         <>
-          <Card>
+          <Card className="print:hidden">
             <CardHeader><CardTitle>Student Details</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div><p className="font-medium">Name</p><p>{studentRecords[0].name}</p></div>
@@ -487,7 +489,7 @@ export default function FeeCollectionPage() {
             </CardContent>
           </Card>
 
-          <div className="space-y-6">
+          <div className="space-y-6 print:hidden">
             <FeeSummaryTable 
                 data={feeSummaryData} 
                 onPay={handlePayClick} 
@@ -514,7 +516,15 @@ export default function FeeCollectionPage() {
             )}
 
             <Card>
-              <CardHeader><CardTitle>Overall Payment History</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Overall Payment History</CardTitle>
+                </div>
+                <Button variant="outline" size="icon" onClick={() => window.print()}>
+                  <Print className="h-4 w-4" />
+                  <span className="sr-only">Print Receipt</span>
+                </Button>
+              </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
@@ -530,6 +540,13 @@ export default function FeeCollectionPage() {
                 </Table>
               </CardContent>
             </Card>
+          </div>
+
+          <div className="hidden print:block print-only">
+            <div className="print-container">
+              <PrintableReceipt student={studentRecords[0]} payments={payments} />
+              <PrintableReceipt student={studentRecords[0]} payments={payments} />
+            </div>
           </div>
 
           <Dialog open={editConcessionDialogOpen} onOpenChange={setEditConcessionDialogOpen}>

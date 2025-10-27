@@ -77,3 +77,38 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  .fee-collection-page > *:not(.print-only) {
+    display: none;
+  }
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
+  body {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  .print-container {
+    display: flex;
+    flex-direction: column;
+    height: 27.7cm; /* A4 height (29.7cm) minus 2cm margins */
+    justify-content: space-between;
+  }
+  .receipt-container {
+    height: 13.5cm; /* Approx half of the printable area */
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #000;
+    padding: 0.5cm;
+    font-size: 10pt;
+    color: #000;
+  }
+  .receipt-container h1 {
+    font-size: 16pt;
+  }
+  .receipt-container h2 {
+    font-size: 12pt;
+  }
+}
