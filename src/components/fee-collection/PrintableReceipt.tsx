@@ -1,20 +1,7 @@
 "use client";
 
 import React from 'react';
-
-type StudentDetails = {
-  name: string;
-  roll_number: string;
-  class: string;
-  section: string;
-};
-
-type Payment = {
-  id: string;
-  amount: number;
-  fee_type: string;
-  created_at: string;
-};
+import { Payment, StudentDetails } from "@/hooks/use-fee-collection";
 
 interface PrintableReceiptProps {
   student: StudentDetails;
