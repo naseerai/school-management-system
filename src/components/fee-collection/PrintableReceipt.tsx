@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Payment, StudentDetails } from "@/hooks/use-fee-collection";
+import { Payment, StudentDetails } from "@/types";
 
 interface PrintableReceiptProps {
   student: StudentDetails;

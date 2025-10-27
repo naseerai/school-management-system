@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Print } from "lucide-react";
-import { Payment, StudentDetails } from "@/hooks/use-fee-collection";
+import { Payment, StudentDetails } from "@/types";
 import { PrintableReceipt } from "./PrintableReceipt";
 
 interface PaymentHistoryProps {

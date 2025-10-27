@@ -5,9 +5,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Invoice } from "@/hooks/use-fee-collection";
+import { Invoice, StudentDetails, CashierProfile } from "@/types";
 import { InvoicePaymentDialog } from "./InvoicePaymentDialog";
-import { StudentDetails, CashierProfile } from "@/hooks/use-fee-collection";
 
 interface OutstandingInvoicesProps {
   invoices: Invoice[];

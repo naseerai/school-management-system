@@ -5,7 +5,7 @@ import { useState, useMemo } from "react";
 import { FeeSummaryTable, FeeSummaryTableData } from "@/components/fee-collection/FeeSummaryTable";
 import { PaymentDialog } from "@/components/fee-collection/PaymentDialog";
 import { EditConcessionDialog } from "@/components/fee-collection/EditConcessionDialog";
-import { StudentDetails, Payment, CashierProfile } from "@/hooks/use-fee-collection";
+import { StudentDetails, Payment, CashierProfile } from "@/types";
 
 interface FeeSummaryProps {
   studentRecords: StudentDetails[];
