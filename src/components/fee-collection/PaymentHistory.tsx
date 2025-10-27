@@ -1,12 +1,21 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { Payment, StudentDetails } from "@/types";
 import { PrintableReceipt } from "./PrintableReceipt";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
 
 interface PaymentHistoryProps {
   payments: Payment[];
@@ -14,6 +23,10 @@ interface PaymentHistoryProps {
 }
 
 export function PaymentHistory({ payments, student }: PaymentHistoryProps) {
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <>
       <Card>
@@ -21,10 +34,37 @@ export function PaymentHistory({ payments, student }: PaymentHistoryProps) {
           <div>
             <CardTitle>Overall Payment History</CardTitle>
           </div>
-          <Button variant="outline" size="icon" onClick={() => window.print()}>
-            <Printer className="h-4 w-4" />
-            <span className="sr-only">Print Receipt</span>
-          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl h-[90vh] flex flex-col sm:max-w-[850px]">
+              <DialogHeader className="print-hidden">
+                <DialogTitle>Print Preview</DialogTitle>
+              </DialogHeader>
+              <div className="printable-area flex-grow overflow-auto border rounded-md">
+                <div className="print-container p-4">
+                  <PrintableReceipt student={student} payments={payments} />
+                  <hr className="my-4 border-dashed print-hidden" />
+                  <PrintableReceipt student={student} payments={payments} />
+                </div>
+              </div>
+              <DialogFooter className="print-hidden">
+                <DialogClose asChild>
+                  <Button type="button" variant="secondary">
+                    Close
+                  </Button>
+                </DialogClose>
+                <Button onClick={handlePrint}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Confirm Print
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardHeader>
         <CardContent>
           <Table>
@@ -41,13 +81,6 @@ export function PaymentHistory({ payments, student }: PaymentHistoryProps) {
           </Table>
         </CardContent>
       </Card>
-
-      <div className="hidden print-only">
-        <div className="print-container">
-          <PrintableReceipt student={student} payments={payments} />
-          <PrintableReceipt student={student} payments={payments} />
-        </div>
-      </div>
     </>
   );
 }
