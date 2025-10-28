@@ -28,10 +28,11 @@ import { Input } from "@/components/ui/input";
 type StudentInvoice = {
   id: string;
   status: "paid" | "unpaid";
-  students: {
+  batch_description: string | null;
+  student: {
     roll_number: string;
     name: string;
-  };
+  } | null;
 };
 
 export default function InvoiceBatchDetailPage({ params }: { params: { batchId: string } }) {
@@ -46,7 +47,7 @@ export default function InvoiceBatchDetailPage({ params }: { params: { batchId: 
       setIsLoading(true);
         const { data, error } = await supabase
           .from("invoices")
-          .select("id, status, batch_description, students(roll_number, name)")
+          .select("id, status, batch_description, student:students(roll_number, name)")
           .eq("batch_id", batchId);
 
         if (error) {
@@ -64,8 +65,8 @@ export default function InvoiceBatchDetailPage({ params }: { params: { batchId: 
 
   const filteredInvoices = invoices.filter(
     (invoice) =>
-      invoice.students?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.students?.roll_number.toLowerCase().includes(searchTerm.toLowerCase())
+      invoice.student?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      invoice.student?.roll_number.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -112,9 +113,9 @@ export default function InvoiceBatchDetailPage({ params }: { params: { batchId: 
             ) : filteredInvoices.length > 0 ? (
               filteredInvoices.map((invoice) => (
                 <TableRow key={invoice.id}>
-                  <TableCell>{invoice.students?.roll_number || 'N/A'}</TableCell>
+                  <TableCell>{invoice.student?.roll_number || 'N/A'}</TableCell>
                   <TableCell className="font-medium">
-                    {invoice.students?.name || 'N/A'}
+                    {invoice.student?.name || 'N/A'}
                   </TableCell>
                   <TableCell>
                     {invoice.status === "paid" ? (
