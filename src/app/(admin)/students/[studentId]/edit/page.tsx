@@ -1,9 +1,9 @@
 import { EditStudentForm } from "@/components/admin/edit-student-form";
 
-type PageProps = {
+export default function EditStudentPage({
+  params,
+}: {
   params: { studentId: string };
-};
-
-export default function EditStudentPage({ params }: PageProps) {
+}) {
   return <EditStudentForm studentId={params.studentId} />;
 }
