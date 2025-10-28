@@ -61,7 +61,11 @@ const studentFormSchema = z.object({
   fee_details: z.any().optional(),
 });
 
-export default function EditStudentPage({ params }: { params: { studentId: string } }) {
+type PageProps = {
+  params: { studentId: string };
+};
+
+export default function EditStudentPage({ params }: PageProps) {
   const { studentId } = params;
 
   const [studentTypes, setStudentTypes] = useState<StudentType[]>([]);
@@ -160,7 +164,7 @@ export default function EditStudentPage({ params }: { params: { studentId: strin
                 <FormItem><FormLabel>Section</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="studying_year" render={({ field }) => (
-                <FormItem><FormLabel>Studying Year</FormLabel><FormControl><Input placeholder="e.g., 1st Year" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Studying Year</FormLabel><FormControl><Input placeholder="e.g., 1st Year" {...field} /></FormControl><FormMessage /></FormMessage>
               )} />
               <FormField control={form.control} name="academic_year_id" render={({ field }) => (
                 <FormItem><FormLabel>Academic Year</FormLabel>
