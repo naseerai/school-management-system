@@ -35,11 +35,7 @@ type StudentInvoice = {
   } | null;
 };
 
-type PageProps = {
-  params: { batchId: string };
-};
-
-export default function InvoiceBatchDetailPage({ params }: PageProps) {
+export default function InvoiceBatchDetailPage({ params }: { params: { batchId: string } }) {
   const { batchId } = params;
   const [invoices, setInvoices] = useState<StudentInvoice[]>([]);
   const [batchDescription, setBatchDescription] = useState("");
