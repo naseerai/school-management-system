@@ -28,15 +28,14 @@ import { Input } from "@/components/ui/input";
 type StudentInvoice = {
   id: string;
   status: "paid" | "unpaid";
-  batch_description: string | null;
-  student: {
+  students: {
     roll_number: string;
     name: string;
-  } | null;
+  };
 };
 
-export default function InvoiceBatchDetailPage({ params }: { params: { batchId: string } }) {
-  const { batchId } = params;
+export default function InvoiceBatchDetailPage(props: any) {
+  const { batchId } = props.params as { batchId: string };
   const [invoices, setInvoices] = useState<StudentInvoice[]>([]);
   const [batchDescription, setBatchDescription] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -47,13 +46,22 @@ export default function InvoiceBatchDetailPage({ params }: { params: { batchId: 
       setIsLoading(true);
         const { data, error } = await supabase
           .from("invoices")
-          .select("id, status, batch_description, student:students(roll_number, name)")
+          .select("id, status, batch_description, students(roll_number, name)")
           .eq("batch_id", batchId);
 
         if (error) {
           toast.error("Failed to fetch batch details.");
         } else {
-          setInvoices(data as StudentInvoice[] || []);
+          // Normalize Supabase response: students comes back as an array of related rows.
+          const normalized: StudentInvoice[] = (data || []).map((row: any) => ({
+            id: row.id,
+            status: row.status,
+            students: (row.students && Array.isArray(row.students) && row.students[0])
+              ? { roll_number: row.students[0].roll_number, name: row.students[0].name }
+              : { roll_number: "", name: "" },
+          }));
+
+          setInvoices(normalized);
           if (data && data.length > 0) {
             setBatchDescription(data[0].batch_description || "Invoice Batch");
           }
@@ -65,8 +73,8 @@ export default function InvoiceBatchDetailPage({ params }: { params: { batchId: 
 
   const filteredInvoices = invoices.filter(
     (invoice) =>
-      invoice.student?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.student?.roll_number.toLowerCase().includes(searchTerm.toLowerCase())
+      invoice.students.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      invoice.students.roll_number.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -113,9 +121,9 @@ export default function InvoiceBatchDetailPage({ params }: { params: { batchId: 
             ) : filteredInvoices.length > 0 ? (
               filteredInvoices.map((invoice) => (
                 <TableRow key={invoice.id}>
-                  <TableCell>{invoice.student?.roll_number || 'N/A'}</TableCell>
+                  <TableCell>{invoice.students.roll_number}</TableCell>
                   <TableCell className="font-medium">
-                    {invoice.student?.name || 'N/A'}
+                    {invoice.students.name}
                   </TableCell>
                   <TableCell>
                     {invoice.status === "paid" ? (
