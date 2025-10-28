@@ -61,8 +61,8 @@ const studentFormSchema = z.object({
   fee_details: z.any().optional(),
 });
 
-export default function EditStudentPage(props: { params: any }) {
-  const { studentId } = props.params;
+export default function EditStudentPage({ params }: { params: { studentId: string } }) {
+  const { studentId } = params;
 
   const [studentTypes, setStudentTypes] = useState<StudentType[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);

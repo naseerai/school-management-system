@@ -34,8 +34,8 @@ type StudentInvoice = {
   };
 };
 
-export default function InvoiceBatchDetailPage(props: any) {
-  const { batchId } = props.params as { batchId: string };
+export default function InvoiceBatchDetailPage({ params }: { params: { batchId: string } }) {
+  const { batchId } = params;
   const [invoices, setInvoices] = useState<StudentInvoice[]>([]);
   const [batchDescription, setBatchDescription] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -52,16 +52,7 @@ export default function InvoiceBatchDetailPage(props: any) {
         if (error) {
           toast.error("Failed to fetch batch details.");
         } else {
-          // Normalize Supabase response: students comes back as an array of related rows.
-          const normalized: StudentInvoice[] = (data || []).map((row: any) => ({
-            id: row.id,
-            status: row.status,
-            students: (row.students && Array.isArray(row.students) && row.students[0])
-              ? { roll_number: row.students[0].roll_number, name: row.students[0].name }
-              : { roll_number: "", name: "" },
-          }));
-
-          setInvoices(normalized);
+          setInvoices(data as StudentInvoice[] || []);
           if (data && data.length > 0) {
             setBatchDescription(data[0].batch_description || "Invoice Batch");
           }
@@ -73,8 +64,8 @@ export default function InvoiceBatchDetailPage(props: any) {
 
   const filteredInvoices = invoices.filter(
     (invoice) =>
-      invoice.students.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.students.roll_number.toLowerCase().includes(searchTerm.toLowerCase())
+      invoice.students?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      invoice.students?.roll_number.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -121,9 +112,9 @@ export default function InvoiceBatchDetailPage(props: any) {
             ) : filteredInvoices.length > 0 ? (
               filteredInvoices.map((invoice) => (
                 <TableRow key={invoice.id}>
-                  <TableCell>{invoice.students.roll_number}</TableCell>
+                  <TableCell>{invoice.students?.roll_number || 'N/A'}</TableCell>
                   <TableCell className="font-medium">
-                    {invoice.students.name}
+                    {invoice.students?.name || 'N/A'}
                   </TableCell>
                   <TableCell>
                     {invoice.status === "paid" ? (

@@ -71,16 +71,7 @@ export default function StudentListPage() {
       if (error) {
         toast.error("Failed to fetch students.");
       } else {
-        // Normalize the response: student_types comes as an array, take first item
-        const normalizedData: Student[] = (data || []).map((item: any) => ({
-          id: item.id,
-          roll_number: item.roll_number,
-          name: item.name,
-          class: item.class,
-          section: item.section,
-          student_types: item.student_types?.[0] || null
-        }));
-        setStudents(normalizedData);
+        setStudents(data as Student[] || []);
         setTotalCount(count || 0);
       }
       setIsLoading(false);
