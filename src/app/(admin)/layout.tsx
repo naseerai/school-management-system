@@ -54,9 +54,6 @@ export default function AdminLayout({
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         router.push('/login');
-      } else if (event === 'SIGNED_IN') {
-        setIsLoading(true);
-        checkUserStatus();
       }
     });
 
