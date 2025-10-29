@@ -77,7 +77,7 @@ export default function AdminLayout({
         '/activity-logs',
         '/settings'
       ];
-      const cashierOnlyPages = ['/fee-collection'];
+      const cashierOnlyPages: string[] = [];
 
       const currentPageIsAdminOnly = adminOnlyPages.some(p => pathname.startsWith(p));
       const currentPageIsCashierOnly = cashierOnlyPages.some(p => pathname.startsWith(p));

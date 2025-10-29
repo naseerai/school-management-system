@@ -14,6 +14,7 @@ export function useFeeCollection() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [cashierProfile, setCashierProfile] = useState<CashierProfile | null>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'cashier' | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
@@ -25,6 +26,11 @@ export function useFeeCollection() {
       if (user) {
         const { data: profile } = await supabase.from('cashiers').select('id, has_discount_permission').eq('user_id', user.id).single();
         setCashierProfile(profile);
+        if (profile) {
+          setUserRole('cashier');
+        } else {
+          setUserRole('admin');
+        }
       }
 
       const { data, error } = await supabase.from("academic_years").select("*").order("year_name", { ascending: false });
@@ -100,6 +106,7 @@ export function useFeeCollection() {
       payments,
       invoices,
       cashierProfile,
+      userRole,
       isInitializing,
     },
     actions: {

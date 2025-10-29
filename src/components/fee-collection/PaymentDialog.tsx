@@ -113,7 +113,18 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField control={form.control} name="payment_year" render={({ field }) => (
               <FormItem><FormLabel>Year / Type</FormLabel>
-                <Select onValueChange={(value) => { field.onChange(value); form.setValue("fee_item_name", ""); form.setValue("amount", 0); }} value={field.value}>
+                <Select onValueChange={(value) => {
+                    field.onChange(value);
+                    const currentFeeItemName = form.getValues('fee_item_name');
+                    if (value === 'Other') {
+                      form.setValue('fee_item_name', '');
+                      form.setValue('amount', 0);
+                    } else if (currentFeeItemName) {
+                      handleFeeItemChange(currentFeeItemName);
+                    } else {
+                      form.setValue('amount', 0);
+                    }
+                  }} value={field.value}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger></FormControl>
                   <SelectContent>
                     {Object.keys(masterFeeDetails).map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}

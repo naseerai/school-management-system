@@ -40,7 +40,8 @@ export function BulkPaymentUpload({ cashierProfile, academicYears }: BulkPayment
     const file = event.target.files?.[0];
     if (!file) return;
     if (!cashierProfile) {
-      toast.error("Cashier profile not found. Cannot upload payments.");
+      toast.error("Admin accounts cannot upload payments as they are not linked to a cashier profile.");
+      (event.target as HTMLInputElement).value = "";
       return;
     }
 

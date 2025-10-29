@@ -1,9 +1,10 @@
 import { EditStudentForm } from "@/components/admin/edit-student-form";
 
-export default function EditStudentPage({
+export default async function EditStudentPage({
   params,
 }: {
-  params: { studentId: string };
+  params: Promise<{ studentId: string }>;
 }) {
-  return <EditStudentForm studentId={params.studentId} />;
+  const { studentId } = await params;
+  return <EditStudentForm studentId={studentId} />;
 }

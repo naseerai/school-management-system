@@ -6,12 +6,11 @@ import { StudentDetailsCard } from "@/components/fee-collection/StudentDetailsCa
 import { FeeSummary } from "@/components/fee-collection/FeeSummary";
 import { OutstandingInvoices } from "@/components/fee-collection/OutstandingInvoices";
 import { PaymentHistory } from "@/components/fee-collection/PaymentHistory";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BulkPaymentUpload } from "@/components/fee-collection/BulkPaymentUpload";
 
 export default function FeeCollectionPage() {
   const { state, actions } = useFeeCollection();
-  const { academicYears, isSearching, studentRecords, payments, invoices, cashierProfile, isInitializing } = state;
+  const { academicYears, isSearching, studentRecords, payments, invoices, cashierProfile, userRole, isInitializing } = state;
   const { searchStudent, refetchStudent, logActivity } = actions;
 
   const hasStudent = studentRecords.length > 0;
@@ -24,17 +23,6 @@ export default function FeeCollectionPage() {
     );
   }
 
-  if (!cashierProfile && !isInitializing) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Error</CardTitle>
-          <CardDescription>Could not load cashier profile. You may not have the required permissions to access this page. Please try logging out and back in.</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <StudentSearch
@@ -44,7 +32,7 @@ export default function FeeCollectionPage() {
         isInitializing={isInitializing}
       />
 
-      <BulkPaymentUpload cashierProfile={cashierProfile} academicYears={academicYears} />
+      {userRole === 'admin' && <BulkPaymentUpload cashierProfile={cashierProfile} academicYears={academicYears} />}
 
       {hasStudent && (
         <>
