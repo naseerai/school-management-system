@@ -32,7 +32,7 @@ const allNavItems = [
   { href: "/expenses", icon: TrendingUp, label: "Expenses", roles: ['admin'] },
   { href: "/academic-years", icon: Calendar, label: "Academic Years", roles: ['admin'] },
   { href: "/activity-logs", icon: History, label: "Activity Logs", roles: ['admin'] },
-  { href: "/fee-collection", icon: Receipt, label: "Fee Collection", roles: ['cashier'] },
+  { href: "/fee-collection", icon: Receipt, label: "Fee Collection", roles: ['admin', 'cashier'] },
 ];
 
 export function Sidebar({ userRole, isExpanded }: { userRole: 'admin' | 'cashier', isExpanded: boolean }) {
