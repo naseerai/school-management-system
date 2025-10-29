@@ -52,13 +52,12 @@ export default function InvoiceBatchDetailPage(props: any) {
         if (error) {
           toast.error("Failed to fetch batch details.");
         } else {
-          // Normalize Supabase response: students comes back as an array of related rows.
           const normalized: StudentInvoice[] = (data || []).map((row: any) => ({
             id: row.id,
             status: row.status,
-            students: (row.students && Array.isArray(row.students) && row.students[0])
-              ? { roll_number: row.students[0].roll_number, name: row.students[0].name }
-              : { roll_number: "", name: "" },
+            students: row.students
+              ? { roll_number: row.students.roll_number, name: row.students.name }
+              : { roll_number: "N/A", name: "Student not found" },
           }));
 
           setInvoices(normalized);
