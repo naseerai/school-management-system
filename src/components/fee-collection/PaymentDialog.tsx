@@ -42,22 +42,13 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
   const watchedPaymentYear = form.watch("payment_year");
   const masterFeeDetails = studentRecords.length > 0 ? studentRecords[studentRecords.length - 1].fee_details || {} : {};
 
-  useEffect(() => {
-    if (initialState) {
-      form.reset({
-        amount: 0,
-        payment_method: "cash",
-        notes: "",
-        payment_year: initialState.payment_year,
-        fee_item_name: initialState.fee_item_name,
-      });
-    }
-  }, [initialState, form]);
-
-  const handleFeeItemChange = (feeItemName: string) => {
+  const handleFeeItemChange = (feeItemName: string, yearOverride?: string) => {
     form.setValue('fee_item_name', feeItemName);
-    const year = form.getValues("payment_year");
-    if (!year || year === 'Other') return;
+    const year = yearOverride || form.getValues("payment_year");
+    if (!year || year === 'Other') {
+        form.setValue('amount', 0);
+        return;
+    };
 
     const feeItemsForYear = masterFeeDetails[year] || [];
     const selectedFeeItem = feeItemsForYear.find(item => item.name === feeItemName);
@@ -71,8 +62,41 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
         const balance = (selectedFeeItem.amount - (selectedFeeItem.concession || 0)) - paidForThisItem;
         
         form.setValue('amount', Math.max(0, parseFloat(balance.toFixed(2))));
+    } else {
+        form.setValue('amount', 0);
     }
   };
+
+  useEffect(() => {
+    if (open && initialState) {
+      form.reset({
+        amount: 0,
+        payment_method: "cash",
+        notes: "",
+        payment_year: initialState.payment_year,
+        fee_item_name: initialState.fee_item_name,
+      });
+
+      if (initialState.payment_year && initialState.payment_year !== 'Other' && initialState.fee_item_name) {
+        const year = initialState.payment_year;
+        const feeItemName = initialState.fee_item_name;
+        
+        const feeItemsForYear = masterFeeDetails[year] || [];
+        const selectedFeeItem = feeItemsForYear.find(item => item.name === feeItemName);
+
+        if (selectedFeeItem) {
+            const feeTypeString = `${year} - ${feeItemName}`;
+            const paidForThisItem = payments
+                .filter(p => p.fee_type === feeTypeString)
+                .reduce((sum, p) => sum + p.amount, 0);
+            
+            const balance = (selectedFeeItem.amount - (selectedFeeItem.concession || 0)) - paidForThisItem;
+            
+            form.setValue('amount', Math.max(0, parseFloat(balance.toFixed(2))));
+        }
+      }
+    }
+  }, [open, initialState, form, masterFeeDetails, payments]);
 
   const onSubmit = async (values: z.infer<typeof paymentSchema>) => {
     const studentRecordForPayment = studentRecords.find(r => r.studying_year === values.payment_year) || studentRecords[studentRecords.length - 1];
@@ -120,7 +144,7 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
                       form.setValue('fee_item_name', '');
                       form.setValue('amount', 0);
                     } else if (currentFeeItemName) {
-                      handleFeeItemChange(currentFeeItemName);
+                      handleFeeItemChange(currentFeeItemName, value);
                     } else {
                       form.setValue('amount', 0);
                     }

@@ -76,7 +76,11 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
   }, [studentRecords, payments]);
 
   const handlePayClick = (feeType: string) => {
-    setPaymentDialogInitialState({ fee_item_name: feeType, payment_year: "" });
+    // Find the current studying year to pre-select it in the dialog
+    const currentRecord = studentRecords.find(r => r.academic_years?.is_active) || studentRecords[studentRecords.length - 1];
+    const currentStudyingYear = currentRecord?.studying_year || "";
+
+    setPaymentDialogInitialState({ fee_item_name: feeType, payment_year: currentStudyingYear });
     setPaymentDialogOpen(true);
   };
 
