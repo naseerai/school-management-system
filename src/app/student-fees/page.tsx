@@ -1,0 +1,99 @@
+"use client";
+
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { StudentDetails } from '@/types';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { StudentFeeView } from '@/components/student-fee-view';
+
+export default function StudentFeesPage() {
+  const [rollNumber, setRollNumber] = useState('');
+  const [academicYear, setAcademicYear] = useState('');
+  const [student, setStudent] = useState<StudentDetails | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rollNumber || !academicYear) {
+      toast.error("Please enter both Roll Number and Academic Year.");
+      return;
+    }
+    setIsLoading(true);
+    setStudent(null);
+
+    const { data: ayData, error: ayError } = await supabase
+      .from('academic_years')
+      .select('id')
+      .eq('year_name', academicYear)
+      .single();
+
+    if (ayError || !ayData) {
+      toast.error("Academic Year not found. Please use the format YYYY-YYYY.");
+      setIsLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('students')
+      .select('*, student_types(name), academic_years(*)')
+      .eq('roll_number', rollNumber)
+      .eq('academic_year_id', ayData.id)
+      .single();
+
+    if (error || !data) {
+      toast.error("Student not found for the provided details.");
+    } else {
+      setStudent(data as StudentDetails);
+    }
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-muted/40 flex flex-col items-center p-4 sm:p-8">
+      <div className="w-full max-w-4xl space-y-6">
+        <div className="print-hidden">
+          <Card>
+            <CardHeader>
+              <CardTitle>Student Fee Portal</CardTitle>
+              <CardDescription>Enter your details to view your fee structure.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-4">
+                <div className="flex-grow">
+                  <label htmlFor="roll_number" className="text-sm font-medium">Roll Number</label>
+                  <Input
+                    id="roll_number"
+                    placeholder="Enter your roll number"
+                    value={rollNumber}
+                    onChange={(e) => setRollNumber(e.target.value)}
+                  />
+                </div>
+                <div className="flex-grow">
+                  <label htmlFor="academic_year" className="text-sm font-medium">Academic Year</label>
+                  <Input
+                    id="academic_year"
+                    placeholder="e.g., 2024-2025"
+                    value={academicYear}
+                    onChange={(e) => setAcademicYear(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Searching..." : "Search"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+
+        {student && (
+          <div className="print-only">
+            <StudentFeeView student={student} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

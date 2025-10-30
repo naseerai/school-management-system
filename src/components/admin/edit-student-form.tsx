@@ -40,12 +40,22 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { AcademicYear } from "@/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FeeStructureEditor } from "@/components/admin/fee-structure-editor";
 
 type StudentType = { id: string; name: string };
+type ClassGroup = { id: string; name: string };
 
 const studentFormSchema = z.object({
   roll_number: z.string().min(1, "Roll number is required"),
@@ -68,6 +78,9 @@ interface EditStudentFormProps {
 export function EditStudentForm({ studentId }: EditStudentFormProps) {
   const [studentTypes, setStudentTypes] = useState<StudentType[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+  const [classGroups, setClassGroups] = useState<ClassGroup[]>([]);
+  const [sections, setSections] = useState<string[]>([]);
+  const [studyingYears, setStudyingYears] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
@@ -76,31 +89,43 @@ export function EditStudentForm({ studentId }: EditStudentFormProps) {
     resolver: zodResolver(studentFormSchema),
   });
 
+  const fetchData = async () => {
+    setIsLoading(true);
+    const [typesRes, yearsRes, studentRes, groupsRes, studentDataRes] = await Promise.all([
+      supabase.from("student_types").select("*"),
+      supabase.from("academic_years").select("*").order("year_name", { ascending: false }),
+      supabase.from("students").select("*").eq("id", studentId).single(),
+      supabase.from("class_groups").select("*"),
+      supabase.from("students").select("section, studying_year"),
+    ]);
+
+    if (typesRes.error) toast.error("Failed to fetch student types.");
+    else setStudentTypes(typesRes.data || []);
+
+    if (yearsRes.error) toast.error("Failed to fetch academic years.");
+    else setAcademicYears(yearsRes.data || []);
+
+    if (studentRes.error) {
+      toast.error("Failed to fetch student data.");
+      router.push("/students");
+    } else {
+      form.reset(studentRes.data);
+    }
+
+    if (groupsRes.error) toast.error("Failed to fetch class groups.");
+    else setClassGroups(groupsRes.data || []);
+
+    if (studentDataRes.data) {
+      setSections([...new Set(studentDataRes.data.map(s => s.section).filter(Boolean))]);
+      setStudyingYears([...new Set(studentDataRes.data.map(s => s.studying_year).filter(Boolean))]);
+    }
+    
+    setIsLoading(false);
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      const [typesRes, yearsRes, studentRes] = await Promise.all([
-        supabase.from("student_types").select("*"),
-        supabase.from("academic_years").select("*").order("year_name", { ascending: false }),
-        supabase.from("students").select("*").eq("id", studentId).single(),
-      ]);
-
-      if (typesRes.error) toast.error("Failed to fetch student types.");
-      else setStudentTypes(typesRes.data || []);
-
-      if (yearsRes.error) toast.error("Failed to fetch academic years.");
-      else setAcademicYears(yearsRes.data || []);
-
-      if (studentRes.error) {
-        toast.error("Failed to fetch student data.");
-        router.push("/students");
-      } else {
-        form.reset(studentRes.data);
-      }
-      setIsLoading(false);
-    };
     fetchData();
-  }, [studentId, form, router]);
+  }, [studentId, router]);
 
   const onStudentSubmit = async (values: z.infer<typeof studentFormSchema>) => {
     setIsSubmitting(true);
@@ -156,13 +181,19 @@ export function EditStudentForm({ studentId }: EditStudentFormProps) {
                 <FormItem><FormLabel>Mobile Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="class" render={({ field }) => (
-                <FormItem><FormLabel>Class</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem className="flex flex-col"><FormLabel>Class</FormLabel>
+                  <ClassCombobox classGroups={classGroups} value={field.value} onChange={field.onChange} onNewGroupAdded={fetchData} />
+                <FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="section" render={({ field }) => (
-                <FormItem><FormLabel>Section</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem className="flex flex-col"><FormLabel>Section</FormLabel>
+                  <CreatableStringCombobox options={sections} value={field.value} onChange={field.onChange} placeholder="Select or type section..." />
+                <FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="studying_year" render={({ field }) => (
-                <FormItem><FormLabel>Studying Year</FormLabel><FormControl><Input placeholder="e.g., 1st Year" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem className="flex flex-col"><FormLabel>Studying Year</FormLabel>
+                  <CreatableStringCombobox options={studyingYears} value={field.value} onChange={field.onChange} placeholder="Select or type year..." />
+                <FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="academic_year_id" render={({ field }) => (
                 <FormItem><FormLabel>Academic Year</FormLabel>
@@ -174,7 +205,7 @@ export function EditStudentForm({ studentId }: EditStudentFormProps) {
               )} />
               <FormField control={form.control} name="student_type_id" render={({ field }) => (
                 <FormItem className="flex flex-col"><FormLabel>Student Type</FormLabel>
-                  <StudentTypeCombobox studentTypes={studentTypes} value={field.value} onChange={field.onChange} onNewTypeAdded={() => {}} />
+                  <StudentTypeCombobox studentTypes={studentTypes} value={field.value} onChange={field.onChange} onNewTypeAdded={fetchData} />
                 <FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="caste" render={({ field }) => (
@@ -208,26 +239,105 @@ export function EditStudentForm({ studentId }: EditStudentFormProps) {
   );
 }
 
-function StudentTypeCombobox({ studentTypes, value, onChange, onNewTypeAdded }: { studentTypes: StudentType[], value: string, onChange: (value: string) => void, onNewTypeAdded: () => void }) {
+function ClassCombobox({ classGroups, value, onChange, onNewGroupAdded }: { classGroups: ClassGroup[], value: string, onChange: (value: string) => void, onNewGroupAdded: () => void }) {
   const [open, setOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+
+  const handleAddNewGroup = async () => {
+    const trimmedName = newGroupName.trim();
+    if (!trimmedName) return;
+    setIsAdding(true);
+
+    const { data: existing } = await supabase.from("class_groups").select("id").ilike("name", trimmedName).single();
+    if (existing) {
+      toast.error(`Class group "${trimmedName}" already exists.`);
+      setIsAdding(false);
+      return;
+    }
+
+    const { data, error } = await supabase.from("class_groups").insert({ name: trimmedName }).select().single();
+    if (error) {
+      toast.error(`Failed to add group: ${error.message}`);
+    } else {
+      toast.success("New class group added!");
+      onNewGroupAdded();
+      onChange(data.name);
+      setDialogOpen(false);
+      setNewGroupName("");
+    }
+    setIsAdding(false);
+  };
+
+  return (
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
+            {value || "Select class..."}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <Command>
+            <CommandInput placeholder="Search class..." />
+            <CommandList>
+              <CommandEmpty>No class found.</CommandEmpty>
+              <CommandGroup>
+                {classGroups.map((cg) => (
+                  <CommandItem key={cg.id} value={cg.name} onSelect={() => { onChange(cg.name); setOpen(false); }}>
+                    <Check className={cn("mr-2 h-4 w-4", value === cg.name ? "opacity-100" : "opacity-0")} />
+                    {cg.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem onSelect={() => { setOpen(false); setDialogOpen(true); }}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add New Group
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add New Class Group</DialogTitle></DialogHeader>
+          <Input value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} placeholder="e.g., BSc" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddNewGroup} disabled={isAdding}>{isAdding ? "Adding..." : "Add Group"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function CreatableStringCombobox({ options, value, onChange, placeholder }: { options: string[], value: string, onChange: (value: string) => void, placeholder: string }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
-          {value ? studentTypes.find((st) => st.id === value)?.name : "Select student type..."}
+          {value || placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
-          <CommandInput placeholder="Search student type..." />
+        <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
+          <CommandInput placeholder="Search or type new..." value={value} onValueChange={onChange} />
           <CommandList>
-            <CommandEmpty>No student type found.</CommandEmpty>
+            <CommandEmpty>No results. Press enter to add.</CommandEmpty>
             <CommandGroup>
-              {studentTypes.map((st) => (
-                <CommandItem key={st.id} value={st.name} onSelect={() => { onChange(st.id); setOpen(false); }}>
-                  <Check className={cn("mr-2 h-4 w-4", value === st.id ? "opacity-100" : "opacity-0")} />
-                  {st.name}
+              {options.map((option) => (
+                <CommandItem key={option} value={option} onSelect={() => { onChange(option); setOpen(false); }}>
+                  <Check className={cn("mr-2 h-4 w-4", value === option ? "opacity-100" : "opacity-0")} />
+                  {option}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -235,5 +345,86 @@ function StudentTypeCombobox({ studentTypes, value, onChange, onNewTypeAdded }: 
         </Command>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function StudentTypeCombobox({ studentTypes, value, onChange, onNewTypeAdded }: { studentTypes: StudentType[], value: string, onChange: (value: string) => void, onNewTypeAdded: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+
+  const handleAddNewType = async () => {
+    const trimmedName = newTypeName.trim();
+    if (!trimmedName) return;
+    setIsAdding(true);
+
+    const { data: existingType } = await supabase.from("student_types").select("id").ilike("name", trimmedName).single();
+    if (existingType) {
+      toast.error(`Student type "${trimmedName}" already exists.`);
+      setIsAdding(false);
+      return;
+    }
+
+    const { data, error } = await supabase.from("student_types").insert({ name: trimmedName }).select().single();
+    if (error) {
+      toast.error(`Failed to add type: ${error.message}`);
+    } else {
+      toast.success("New student type added!");
+      onNewTypeAdded();
+      onChange(data.id);
+      setDialogOpen(false);
+      setNewTypeName("");
+    }
+    setIsAdding(false);
+  };
+
+  return (
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
+            {value ? studentTypes.find((st) => st.id === value)?.name : "Select student type..."}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <Command>
+            <CommandInput placeholder="Search student type..." />
+            <CommandList>
+              <CommandEmpty>No student type found.</CommandEmpty>
+              <CommandGroup>
+                {studentTypes.map((st) => (
+                  <CommandItem key={st.id} value={st.name} onSelect={() => { onChange(st.id); setOpen(false); }}>
+                    <Check className={cn("mr-2 h-4 w-4", value === st.id ? "opacity-100" : "opacity-0")} />
+                    {st.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem onSelect={() => { setOpen(false); setDialogOpen(true); }}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add New Type
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Student Type</DialogTitle>
+            <DialogDescription>Enter the name for the new student type.</DialogDescription>
+          </DialogHeader>
+          <Input value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="e.g., Day Scholar" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddNewType} disabled={isAdding}>{isAdding ? "Adding..." : "Add Type"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
