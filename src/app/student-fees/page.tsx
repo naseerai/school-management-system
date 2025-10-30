@@ -166,15 +166,6 @@ export default function StudentFeesPage() {
 
         {student && (
           <div className="print-area space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Student Fee Details</CardTitle>
-                <CardDescription>
-                  A complete overview of your fees, payments, and outstanding balances.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-            
             <StudentDetailsCard student={student} />
             
             <FeeSummaryTable data={feeSummaryData} isReadOnly={true} />
