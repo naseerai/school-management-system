@@ -66,19 +66,29 @@ export function useFeeCollection() {
     setPayments([]);
     setInvoices([]);
     
-    let query = supabase.from("students").select("*, student_types(name), academic_years(*)").eq("roll_number", values.roll_number);
-    if (values.academic_year_id) {
-      query = query.eq("academic_year_id", values.academic_year_id);
-    }
-    
-    const { data, error } = await query.order('created_at', { ascending: true });
+    const { data: allStudentRecords, error } = await supabase
+      .from("students")
+      .select("*, student_types(name), academic_years(*)")
+      .eq("roll_number", values.roll_number)
+      .order('created_at', { ascending: true });
 
-    if (error || !data || data.length === 0) {
+    if (error || !allStudentRecords || allStudentRecords.length === 0) {
       toast.error("Student not found.");
-    } else {
-      setStudentRecords(data as StudentDetails[]);
-      await fetchStudentFinancials(data.map(s => s.id));
+      setIsSearching(false);
+      return;
     }
+
+    if (values.academic_year_id) {
+      const recordInYear = allStudentRecords.find(s => s.academic_year_id === values.academic_year_id);
+      if (!recordInYear) {
+        toast.error(`Student with roll number ${values.roll_number} was not enrolled in the selected academic year.`);
+        setIsSearching(false);
+        return;
+      }
+    }
+
+    setStudentRecords(allStudentRecords as StudentDetails[]);
+    await fetchStudentFinancials(allStudentRecords.map(s => s.id));
     setIsSearching(false);
   }, [fetchStudentFinancials]);
 

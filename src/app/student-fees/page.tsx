@@ -28,32 +28,29 @@ export default function StudentFeesPage() {
     setPayments([]);
     setInvoices([]);
 
-    let query = supabase
+    const { data: allStudentRecords, error } = await supabase
       .from('students')
       .select('*, student_types(name), academic_years(*)')
-      .eq('roll_number', rollNumber);
+      .eq('roll_number', rollNumber)
+      .order('created_at', { ascending: true });
 
-    if (academicYear) {
-      const { data: ayData } = await supabase.from('academic_years').select('id').eq('year_name', academicYear).single();
-      if (ayData) {
-        query = query.eq('academic_year_id', ayData.id);
-      } else {
-        toast.error(`Academic Year "${academicYear}" not found. Please use the format YYYY-YYYY.`);
-        setIsLoading(false);
-        return;
-      }
-    }
-    
-    const { data, error } = await query.order('created_at', { ascending: true });
-
-    if (error || !data || data.length === 0) {
-      toast.error("Student not found for the provided details.");
+    if (error || !allStudentRecords || allStudentRecords.length === 0) {
+      toast.error("Student not found.");
       setIsLoading(false);
       return;
     }
 
-    setStudentRecords(data as StudentDetails[]);
-    const studentIds = data.map(s => s.id);
+    if (academicYear) {
+      const recordInYear = allStudentRecords.find(s => s.academic_years?.year_name === academicYear);
+      if (!recordInYear) {
+        toast.error(`Student with roll number ${rollNumber} was not enrolled in academic year ${academicYear}.`);
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    setStudentRecords(allStudentRecords as StudentDetails[]);
+    const studentIds = allStudentRecords.map(s => s.id);
 
     const [paymentsRes, invoicesRes] = await Promise.all([
       supabase.from('payments').select('*').in('student_id', studentIds).order('created_at', { ascending: false }),
