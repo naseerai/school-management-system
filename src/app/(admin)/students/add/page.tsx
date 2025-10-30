@@ -58,12 +58,15 @@ import {
 import { AcademicYear } from "@/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FeeStructureEditor } from "@/components/admin/fee-structure-editor";
+import { CreatableCombobox } from "@/components/admin/creatable-combobox";
 
 // Types
 type FeeItem = { id: string; name: string; amount: number; concession: number };
 type FeeStructure = { [year: string]: FeeItem[] };
 type StudentType = { id: string; name: string };
 type ClassGroup = { id: string; name: string };
+type Section = { id: string; name: string };
+type StudyingYear = { id: string; name: string };
 
 const studentFormSchema = z.object({
   roll_number: z.string().min(1, "Roll number is required"),
@@ -83,8 +86,8 @@ export default function StudentsPage() {
   const [studentTypes, setStudentTypes] = useState<StudentType[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [classGroups, setClassGroups] = useState<ClassGroup[]>([]);
-  const [sections, setSections] = useState<string[]>([]);
-  const [studyingYears, setStudyingYears] = useState<string[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [studyingYears, setStudyingYears] = useState<StudyingYear[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof studentFormSchema>>({
@@ -96,11 +99,12 @@ export default function StudentsPage() {
   });
 
   const fetchData = async () => {
-    const [typesRes, yearsRes, groupsRes, studentDataRes] = await Promise.all([
+    const [typesRes, yearsRes, groupsRes, sectionsRes, studyingYearsRes] = await Promise.all([
       supabase.from("student_types").select("*"),
       supabase.from("academic_years").select("*").order("year_name", { ascending: false }),
       supabase.from("class_groups").select("*"),
-      supabase.from("students").select("section, studying_year"),
+      supabase.from("sections").select("*"),
+      supabase.from("studying_years").select("*"),
     ]);
 
     if (typesRes.error) toast.error("Failed to fetch student types.");
@@ -112,10 +116,11 @@ export default function StudentsPage() {
     if (groupsRes.error) toast.error("Failed to fetch class groups.");
     else setClassGroups(groupsRes.data || []);
 
-    if (studentDataRes.data) {
-      setSections([...new Set(studentDataRes.data.map(s => s.section).filter(Boolean))]);
-      setStudyingYears([...new Set(studentDataRes.data.map(s => s.studying_year).filter(Boolean))]);
-    }
+    if (sectionsRes.error) toast.error("Failed to fetch sections.");
+    else setSections(sectionsRes.data || []);
+
+    if (studyingYearsRes.error) toast.error("Failed to fetch studying years.");
+    else setStudyingYears(studyingYearsRes.data || []);
   };
 
   useEffect(() => {
@@ -130,12 +135,10 @@ export default function StudentsPage() {
     } else {
       toast.success("Student added successfully!");
       form.reset();
-      fetchData(); // Refetch data to include new sections/years in dropdowns
+      fetchData();
     }
     setIsSubmitting(false);
   };
-
-  // ... (bulk upload and sample download functions remain the same)
 
   return (
     <Card>
@@ -170,12 +173,28 @@ export default function StudentsPage() {
                   )} />
                   <FormField control={form.control} name="section" render={({ field }) => (
                     <FormItem className="flex flex-col"><FormLabel>Section</FormLabel>
-                      <CreatableStringCombobox options={sections} value={field.value} onChange={field.onChange} placeholder="Select or type section..." />
+                      <CreatableCombobox
+                        options={sections}
+                        value={field.value}
+                        onChange={field.onChange}
+                        onNewOptionAdded={fetchData}
+                        tableName="sections"
+                        placeholder="Select or add section..."
+                        dialogTitle="Add New Section"
+                      />
                     <FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="studying_year" render={({ field }) => (
                     <FormItem className="flex flex-col"><FormLabel>Studying Year</FormLabel>
-                      <CreatableStringCombobox options={studyingYears} value={field.value} onChange={field.onChange} placeholder="Select or type year..." />
+                      <CreatableCombobox
+                        options={studyingYears}
+                        value={field.value}
+                        onChange={field.onChange}
+                        onNewOptionAdded={fetchData}
+                        tableName="studying_years"
+                        placeholder="Select or add year..."
+                        dialogTitle="Add New Studying Year"
+                      />
                     <FormMessage /></FormItem>
                   )} />
 
@@ -213,14 +232,11 @@ export default function StudentsPage() {
               </form>
             </Form>
           </TabsContent>
-          {/* ... (TabsContent for bulk upload remains the same) */}
         </Tabs>
       </CardContent>
     </Card>
   );
 }
-
-// ... (StudentTypeCombobox remains the same)
 
 function ClassCombobox({ classGroups, value, onChange, onNewGroupAdded }: { classGroups: ClassGroup[], value: string, onChange: (value: string) => void, onNewGroupAdded: () => void }) {
   const [open, setOpen] = useState(false);
@@ -297,37 +313,6 @@ function ClassCombobox({ classGroups, value, onChange, onNewGroupAdded }: { clas
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-function CreatableStringCombobox({ options, value, onChange, placeholder }: { options: string[], value: string, onChange: (value: string) => void, placeholder: string }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
-          {value || placeholder}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command filter={(value, search) => value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
-          <CommandInput placeholder="Search or type new..." value={value} onValueChange={onChange} />
-          <CommandList>
-            <CommandEmpty>No results. Press enter to add.</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem key={option} value={option} onSelect={() => { onChange(option); setOpen(false); }}>
-                  <Check className={cn("mr-2 h-4 w-4", value === option ? "opacity-100" : "opacity-0")} />
-                  {option}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
   );
 }
 
