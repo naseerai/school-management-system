@@ -23,9 +23,19 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
   const [paymentDialogInitialState, setPaymentDialogInitialState] = useState<{ fee_item_name: string, payment_year: string } | null>(null);
   const [paymentToPrint, setPaymentToPrint] = useState<Payment | null>(null);
 
+  const handlePrint = (payment: Payment) => {
+    setPaymentToPrint(payment);
+    setTimeout(() => {
+      window.print();
+      // Clear after printing to remove the print-only content from the DOM
+      setTimeout(() => setPaymentToPrint(null), 100);
+    }, 100);
+  };
+
   const handlePaymentSuccess = (newPayment: Payment) => {
     onSuccess();
     toast.success("Payment recorded successfully!");
+    handlePrint(newPayment);
   };
 
   const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
