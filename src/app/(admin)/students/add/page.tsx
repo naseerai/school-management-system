@@ -63,6 +63,7 @@ import { FeeStructureEditor } from "@/components/admin/fee-structure-editor";
 type FeeItem = { id: string; name: string; amount: number; concession: number };
 type FeeStructure = { [year: string]: FeeItem[] };
 type StudentType = { id: string; name: string };
+type ClassGroup = { id: string; name: string };
 
 const studentFormSchema = z.object({
   roll_number: z.string().min(1, "Roll number is required"),
@@ -81,6 +82,7 @@ const studentFormSchema = z.object({
 export default function StudentsPage() {
   const [studentTypes, setStudentTypes] = useState<StudentType[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+  const [classGroups, setClassGroups] = useState<ClassGroup[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof studentFormSchema>>({
@@ -101,9 +103,10 @@ export default function StudentsPage() {
   });
 
   const fetchData = async () => {
-    const [typesRes, yearsRes] = await Promise.all([
+    const [typesRes, yearsRes, groupsRes] = await Promise.all([
       supabase.from("student_types").select("*"),
       supabase.from("academic_years").select("*").order("year_name", { ascending: false }),
+      supabase.from("class_groups").select("*"),
     ]);
 
     if (typesRes.error) toast.error("Failed to fetch student types.");
@@ -111,6 +114,9 @@ export default function StudentsPage() {
 
     if (yearsRes.error) toast.error("Failed to fetch academic years.");
     else setAcademicYears(yearsRes.data || []);
+
+    if (groupsRes.error) toast.error("Failed to fetch class groups.");
+    else setClassGroups(groupsRes.data || []);
   };
 
   useEffect(() => {
@@ -293,13 +299,32 @@ export default function StudentsPage() {
                     <FormItem><FormLabel>Mobile Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="class" render={({ field }) => (
-                    <FormItem><FormLabel>Class</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Class</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select class..." /></SelectTrigger></FormControl>
+                        <SelectContent>{classGroups.map(cg => <SelectItem key={cg.id} value={cg.name}>{cg.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    <FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="section" render={({ field }) => (
-                    <FormItem><FormLabel>Section</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Section</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select section..." /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {['A', 'B', 'C', 'D', 'E'].map(sec => <SelectItem key={sec} value={sec}>{sec}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    <FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="studying_year" render={({ field }) => (
-                    <FormItem><FormLabel>Studying Year</FormLabel><FormControl><Input placeholder="e.g., 1st Year" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Studying Year</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select studying year..." /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {['1st Year', '2nd Year', '3rd Year', '4th Year'].map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    <FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="academic_year_id" render={({ field }) => (
                     <FormItem><FormLabel>Academic Year</FormLabel>

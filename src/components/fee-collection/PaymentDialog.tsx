@@ -28,7 +28,7 @@ interface PaymentDialogProps {
   studentRecords: StudentDetails[];
   payments: Payment[];
   cashierProfile: CashierProfile | null;
-  onSuccess: () => void;
+  onSuccess: (newPayment: Payment) => void;
   logActivity: (action: string, details: object, studentId: string) => Promise<void>;
   initialState: { fee_item_name: string, payment_year: string } | null;
 }
@@ -117,14 +117,13 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
         cashier_id: cashierProfile.id,
     };
 
-    const { error } = await supabase.from("payments").insert([paymentData]);
+    const { data: newPayment, error } = await supabase.from("payments").insert([paymentData]).select().single();
     if (error) {
       toast.error(`Payment failed: ${error.message}`);
     } else {
-      toast.success("Payment recorded successfully!");
       await logActivity("Fee Collection", { ...values, fee_type: feeTypeForDb }, studentRecordForPayment.id);
       onOpenChange(false);
-      onSuccess();
+      onSuccess(newPayment as Payment);
     }
     setIsSubmitting(false);
   };
@@ -162,7 +161,11 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
               <FormField control={form.control} name="fee_item_name" render={({ field }) => (
                 <FormItem><FormLabel>Fee Item</FormLabel>
                   <Select onValueChange={(value) => handleFeeItemChange(value)} value={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Select fee item..." /></SelectTrigger></FormControl>
+                    <FormControl>
+                      <SelectTrigger disabled={watchedPaymentYear !== 'Other' && !!initialState?.fee_item_name}>
+                        <SelectValue placeholder="Select fee item..." />
+                      </SelectTrigger>
+                    </FormControl>
                     <SelectContent>
                       {(masterFeeDetails[watchedPaymentYear] || []).map(item => <SelectItem key={item.id} value={item.name}>{item.name}</SelectItem>)}
                     </SelectContent>

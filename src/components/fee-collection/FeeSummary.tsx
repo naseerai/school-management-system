@@ -2,10 +2,12 @@
 
 import React from "react";
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
 import { FeeSummaryTable, FeeSummaryTableData } from "@/components/fee-collection/FeeSummaryTable";
 import { PaymentDialog } from "@/components/fee-collection/PaymentDialog";
 import { EditConcessionDialog } from "@/components/fee-collection/EditConcessionDialog";
 import { StudentDetails, Payment, CashierProfile } from "@/types";
+import { PrintableReceipt } from "./PrintableReceipt";
 
 interface FeeSummaryProps {
   studentRecords: StudentDetails[];
@@ -19,6 +21,26 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [editConcessionDialogOpen, setEditConcessionDialogOpen] = useState(false);
   const [paymentDialogInitialState, setPaymentDialogInitialState] = useState<{ fee_item_name: string, payment_year: string } | null>(null);
+  const [paymentToPrint, setPaymentToPrint] = useState<Payment | null>(null);
+
+  const handlePrint = (payment: Payment) => {
+    setPaymentToPrint(payment);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => setPaymentToPrint(null), 100);
+    }, 100);
+  };
+
+  const handlePaymentSuccess = (newPayment: Payment) => {
+    onSuccess();
+    toast.success("Payment recorded successfully!", {
+      action: {
+        label: "Print Receipt",
+        onClick: () => handlePrint(newPayment),
+      },
+      duration: 10000,
+    });
+  };
 
   const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
     if (studentRecords.length === 0) return null;
@@ -76,7 +98,6 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
   }, [studentRecords, payments]);
 
   const handlePayClick = (feeType: string) => {
-    // Find the current studying year to pre-select it in the dialog
     const currentRecord = studentRecords.find(r => r.academic_years?.is_active) || studentRecords[studentRecords.length - 1];
     const currentStudyingYear = currentRecord?.studying_year || "";
 
@@ -91,6 +112,18 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
 
   return (
     <>
+      {paymentToPrint && studentRecords.length > 0 && (
+        <div className="print-only">
+          <div className="print-container">
+            <div className="print-receipt">
+              <PrintableReceipt student={studentRecords[0]} payments={[paymentToPrint]} />
+            </div>
+            <div className="print-receipt">
+              <PrintableReceipt student={studentRecords[0]} payments={[paymentToPrint]} />
+            </div>
+          </div>
+        </div>
+      )}
       <FeeSummaryTable
         data={feeSummaryData}
         onPay={handlePayClick}
@@ -104,7 +137,7 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
         studentRecords={studentRecords}
         payments={payments}
         cashierProfile={cashierProfile}
-        onSuccess={onSuccess}
+        onSuccess={handlePaymentSuccess}
         logActivity={logActivity}
         initialState={paymentDialogInitialState}
       />

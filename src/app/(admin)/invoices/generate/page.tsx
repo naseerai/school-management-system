@@ -92,7 +92,9 @@ export default function GenerateInvoicesPage() {
       .select('id');
       
     studentQuery = studentQuery.eq('class', values.class_filter);
-    studentQuery = studentQuery.eq('section', values.section_filter);
+    if (values.section_filter !== 'all') {
+      studentQuery = studentQuery.eq('section', values.section_filter);
+    }
     if (values.student_type_id_filter !== 'all') {
       studentQuery = studentQuery.eq('student_type_id', values.student_type_id_filter);
     }
@@ -113,7 +115,8 @@ export default function GenerateInvoicesPage() {
     const batch_id = uuidv4();
     const selectedStudentType = studentTypes.find(st => st.id === values.student_type_id_filter);
     const studentTypeName = values.student_type_id_filter === 'all' ? 'All Types' : selectedStudentType?.name;
-    const batch_description = `${selectedFee.fee_name} for Class ${values.class_filter}-${values.section_filter} (${studentTypeName})`;
+    const sectionName = values.section_filter === 'all' ? 'All Sections' : `Section ${values.section_filter}`;
+    const batch_description = `${selectedFee.fee_name} for Class ${values.class_filter} ${sectionName} (${studentTypeName})`;
 
     const invoicesToInsert = students.map(student => ({
       student_id: student.id,
@@ -193,7 +196,15 @@ export default function GenerateInvoicesPage() {
               <FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="section_filter" render={({ field }) => (
-              <FormItem><FormLabel>Section</FormLabel><FormControl><Input placeholder="e.g., A" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Section</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Select section..." /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    {['A', 'B', 'C', 'D', 'E'].map(sec => <SelectItem key={sec} value={sec}>{sec}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              <FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="student_type_id_filter" render={({ field }) => (
               <FormItem><FormLabel>Student Type</FormLabel>
