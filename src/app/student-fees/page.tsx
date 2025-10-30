@@ -83,9 +83,19 @@ export default function StudentFeesPage() {
     });
     const feeTypes = Array.from(allFeeTypeNames).sort();
 
-    const paymentsByFeeType: { [type: string]: number } = {};
+    const paymentsByYearAndType: { [year: string]: { [feeType: string]: number } } = {};
     payments.forEach(p => {
-        paymentsByFeeType[p.fee_type] = (paymentsByFeeType[p.fee_type] || 0) + p.amount;
+        const parts = p.fee_type.split(' - ');
+        if (parts.length >= 2) {
+            const year = parts[0].trim();
+            const feeType = parts.slice(1).join(' - ').trim();
+            
+            if (!paymentsByYearAndType[year]) {
+                paymentsByYearAndType[year] = {};
+            }
+            
+            paymentsByYearAndType[year][feeType] = (paymentsByYearAndType[year][feeType] || 0) + p.amount;
+        }
     });
 
     const cellData: FeeSummaryTableData['cellData'] = {};
@@ -101,7 +111,7 @@ export default function StudentFeesPage() {
             if (feeItem) {
                 const total = feeItem.amount;
                 const concession = feeItem.concession || 0;
-                const paid = paymentsByFeeType[`${year} - ${feeType}`] || 0;
+                const paid = paymentsByYearAndType[year]?.[feeType] || 0;
                 const pending = Math.max(0, total - concession - paid);
 
                 cellData[year][feeType] = { total, paid, pending };
