@@ -10,23 +10,18 @@ import { PaymentHistory } from "@/components/fee-collection/PaymentHistory";
 
 interface StudentFeeViewProps {
   studentRecords: StudentDetails[];
+  allFeeDetails: { [year: string]: any[] };
   payments: Payment[];
   invoices: Invoice[];
 }
 
-export function StudentFeeView({ studentRecords, payments, invoices }: StudentFeeViewProps) {
+export function StudentFeeView({ studentRecords, allFeeDetails, payments, invoices }: StudentFeeViewProps) {
   const student = studentRecords[studentRecords.length - 1];
 
   const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
-    if (studentRecords.length === 0) return null;
+    if (!allFeeDetails) return null;
 
-    const mergedFeeDetails = studentRecords.reduce<{[year: string]: any[]}>((acc, record) => {
-        if (record.fee_details) {
-            Object.assign(acc, record.fee_details);
-        }
-        return acc;
-    }, {});
-
+    const mergedFeeDetails = allFeeDetails;
     const years = Object.keys(mergedFeeDetails).sort();
     const allFeeTypeNames = new Set<string>();
     Object.values(mergedFeeDetails).forEach(items => {
@@ -76,7 +71,7 @@ export function StudentFeeView({ studentRecords, payments, invoices }: StudentFe
     overallTotals.pending = Math.max(0, overallTotals.total - overallTotals.concession - overallTotals.paid);
 
     return { years, feeTypes, cellData, yearlyTotals, overallTotals };
-  }, [studentRecords, payments]);
+  }, [allFeeDetails, payments]);
 
   return (
     <div className="space-y-6">

@@ -16,6 +16,7 @@ export default function StudentFeesPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [mergedFeeDetails, setMergedFeeDetails] = useState<any>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +28,7 @@ export default function StudentFeesPage() {
     setStudentRecords([]);
     setPayments([]);
     setInvoices([]);
+    setMergedFeeDetails(null);
 
     const { data: allStudentRecords, error } = await supabase
       .from('students')
@@ -49,7 +51,15 @@ export default function StudentFeesPage() {
       }
     }
 
+    const merged = allStudentRecords.reduce<{[year: string]: any[]}>((acc, record) => {
+        if (record.fee_details) {
+            Object.assign(acc, record.fee_details);
+        }
+        return acc;
+    }, {});
+    setMergedFeeDetails(merged);
     setStudentRecords(allStudentRecords as StudentDetails[]);
+    
     const studentIds = allStudentRecords.map(s => s.id);
 
     const [paymentsRes, invoicesRes] = await Promise.all([
@@ -100,9 +110,14 @@ export default function StudentFeesPage() {
           </Card>
         </div>
 
-        {studentRecords.length > 0 && (
+        {studentRecords.length > 0 && mergedFeeDetails && (
           <div className="print-area">
-            <StudentFeeView studentRecords={studentRecords} payments={payments} invoices={invoices} />
+            <StudentFeeView 
+              studentRecords={studentRecords} 
+              allFeeDetails={mergedFeeDetails}
+              payments={payments} 
+              invoices={invoices} 
+            />
           </div>
         )}
       </div>
