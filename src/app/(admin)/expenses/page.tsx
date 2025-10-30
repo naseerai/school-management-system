@@ -68,6 +68,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { DataTablePagination } from "@/components/data-table-pagination";
+import { Label } from "@/components/ui/label";
 
 type Department = { id: string; name: string };
 type Expense = {
@@ -100,6 +101,8 @@ export default function ExpensesPage() {
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -174,60 +177,83 @@ export default function ExpensesPage() {
   };
 
   const handleDownload = async () => {
-    const today = new Date();
-    const startDate = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-    const endDate = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+    if (!startDate || !endDate) {
+      toast.error("Please select both a start and end date for the report.");
+      return;
+    }
+    const toastId = toast.loading("Generating report...");
 
     const [paymentsRes, expensesRes] = await Promise.all([
       supabase.from("payments")
-        .select("created_at, amount, fee_type, students(name, roll_number)")
-        .gte('created_at', startDate)
-        .lte('created_at', endDate),
+        .select("created_at, amount, fee_type, notes, students(name, roll_number)")
+        .gte('created_at', new Date(startDate).toISOString())
+        .lte('created_at', new Date(endDate).toISOString()),
       supabase.from("expenses")
         .select("expense_date, amount, description, departments(name)")
-        .eq('expense_date', new Date().toISOString().split('T')[0])
+        .gte('expense_date', startDate)
+        .lte('expense_date', endDate)
     ]);
 
     if (paymentsRes.error || expensesRes.error) {
-      toast.error("Failed to fetch daily sheet data.");
+      toast.error("Failed to fetch report data.", { id: toastId });
       return;
     }
 
-    const paymentsData = (paymentsRes.data || []).map((p: any) => ({
-      Time: new Date(p.created_at).toLocaleTimeString(),
-      Type: 'Payment',
-      Description: p.fee_type,
-      'Student/Department': `${p.students?.name} (${p.students?.roll_number})`,
-      Amount: p.amount,
-    }));
+    const paymentsData = paymentsRes.data || [];
+    const expensesData = expensesRes.data || [];
 
-    const expensesData = (expensesRes.data || []).map((e: any) => ({
-      Time: '',
-      Type: 'Expense',
-      Description: e.description || '',
-      'Student/Department': e.departments?.name || 'N/A',
-      Amount: -e.amount,
-    }));
-
-    const combinedData = [...paymentsData, ...expensesData];
-
-    if (combinedData.length === 0) {
-      toast.info("No payments or expenses recorded today to download.");
+    if (paymentsData.length === 0 && expensesData.length === 0) {
+      toast.info("No payments or expenses recorded in the selected date range.", { id: toastId });
       return;
     }
 
-    const csv = Papa.unparse(combinedData);
+    let totalIncome = 0;
+    let totalExpense = 0;
+
+    const reportData = [
+      ["Date", "Type", "Description", "Details", "Income", "Expense"]
+    ];
+
+    paymentsData.forEach((p: any) => {
+      totalIncome += p.amount;
+      reportData.push([
+        new Date(p.created_at).toLocaleDateString(),
+        "Payment",
+        p.fee_type,
+        `${p.students?.name || 'N/A'} (${p.students?.roll_number || 'N/A'})`,
+        p.amount.toFixed(2),
+        ""
+      ]);
+    });
+
+    expensesData.forEach((e: any) => {
+      totalExpense += e.amount;
+      reportData.push([
+        new Date(e.expense_date).toLocaleDateString(),
+        "Expense",
+        e.description || "",
+        e.departments?.name || "N/A",
+        "",
+        e.amount.toFixed(2)
+      ]);
+    });
+
+    reportData.push([]); // Empty row for spacing
+    reportData.push(["", "", "", "Total Income:", totalIncome.toFixed(2)]);
+    reportData.push(["", "", "", "Total Expense:", totalExpense.toFixed(2)]);
+    reportData.push(["", "", "", "Net Balance:", (totalIncome - totalExpense).toFixed(2)]);
+
+    const csv = Papa.unparse(reportData);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    const todayStr = new Date().toISOString().split('T')[0];
-    link.setAttribute("download", `daily_sheet_${todayStr}.csv`);
+    link.setAttribute("download", `report_${startDate}_to_${endDate}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Daily sheet downloaded.");
+    toast.success("Report downloaded successfully.", { id: toastId });
   };
 
   useEffect(() => {
@@ -243,15 +269,23 @@ export default function ExpensesPage() {
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <CardTitle>Expenses</CardTitle>
               <CardDescription>Track and manage all expenses.</CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="start-date">From</Label>
+                <Input id="start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-auto" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="end-date">To</Label>
+                <Input id="end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-auto" />
+              </div>
               <Button variant="outline" size="sm" className="gap-1" onClick={handleDownload}>
                 <Download className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only">Download Daily Sheet</span>
+                <span className="sr-only sm:not-sr-only">Download Report</span>
               </Button>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>

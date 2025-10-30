@@ -39,11 +39,6 @@ export function BulkPaymentUpload({ cashierProfile, academicYears }: BulkPayment
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!cashierProfile) {
-      toast.error("Admin accounts cannot upload payments as they are not linked to a cashier profile.");
-      (event.target as HTMLInputElement).value = "";
-      return;
-    }
 
     setIsUploading(true);
     const toastId = toast.loading("Processing CSV file...");
@@ -105,7 +100,7 @@ export function BulkPaymentUpload({ cashierProfile, academicYears }: BulkPayment
 
           paymentsToInsert.push({
             student_id: student.id,
-            cashier_id: cashierProfile.id,
+            cashier_id: cashierProfile?.id || null,
             amount,
             fee_type: row.fee_type?.trim(),
             payment_method,

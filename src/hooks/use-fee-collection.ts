@@ -89,9 +89,9 @@ export function useFeeCollection() {
   }, [studentRecords, searchStudent]);
 
   const logActivity = useCallback(async (action: string, details: object, studentId: string) => {
-    if (!sessionUser || !cashierProfile) return;
+    if (!sessionUser) return;
     await supabase.from('activity_logs').insert({
-      cashier_id: cashierProfile.id,
+      cashier_id: cashierProfile?.id || null,
       student_id: studentId,
       action,
       details,

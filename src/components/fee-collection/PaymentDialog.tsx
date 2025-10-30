@@ -101,8 +101,8 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
   const onSubmit = async (values: z.infer<typeof paymentSchema>) => {
     const studentRecordForPayment = studentRecords.find(r => r.studying_year === values.payment_year) || studentRecords[studentRecords.length - 1];
     
-    if (!studentRecordForPayment || !cashierProfile) {
-      toast.error("Cannot process payment: Student or Cashier profile not found.");
+    if (!studentRecordForPayment) {
+      toast.error("Cannot process payment: Student profile not found.");
       return;
     }
 
@@ -114,7 +114,7 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
         notes: values.notes,
         fee_type: feeTypeForDb,
         student_id: studentRecordForPayment.id,
-        cashier_id: cashierProfile.id,
+        cashier_id: cashierProfile?.id || null,
     };
 
     const { data: newPayment, error } = await supabase.from("payments").insert([paymentData]).select().single();

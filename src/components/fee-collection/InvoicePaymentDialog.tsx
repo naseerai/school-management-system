@@ -53,15 +53,15 @@ export function InvoicePaymentDialog({ open, onOpenChange, invoice, studentRecor
   }, [invoice, currentYearRecord, form]);
 
   const onSubmit = async (values: z.infer<typeof invoicePaymentSchema>) => {
-    if (!studentRecords[0] || !cashierProfile) {
-      toast.error("Cannot process payment. Missing context.");
+    if (!studentRecords[0]) {
+      toast.error("Cannot process payment. Missing student context.");
       return;
     }
     setIsSubmitting(true);
 
     const paymentData = {
       student_id: studentRecords[0].id,
-      cashier_id: cashierProfile.id,
+      cashier_id: cashierProfile?.id || null,
       amount: values.amount,
       payment_method: values.payment_method,
       fee_type: `${values.payment_year} - Invoice: ${invoice.batch_description}`,
