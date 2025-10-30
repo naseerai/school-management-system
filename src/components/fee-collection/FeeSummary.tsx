@@ -41,10 +41,16 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
   const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
     if (studentRecords.length === 0) return null;
 
-    const masterFeeDetails = studentRecords[studentRecords.length - 1].fee_details || {};
-    const years = Object.keys(masterFeeDetails).sort();
+    const mergedFeeDetails = studentRecords.reduce<{[year: string]: any[]}>((acc, record) => {
+        if (record.fee_details) {
+            Object.assign(acc, record.fee_details);
+        }
+        return acc;
+    }, {});
+
+    const years = Object.keys(mergedFeeDetails).sort();
     const allFeeTypeNames = new Set<string>();
-    Object.values(masterFeeDetails).forEach(items => {
+    Object.values(mergedFeeDetails).forEach(items => {
         items.forEach(item => allFeeTypeNames.add(item.name));
     });
     const feeTypes = Array.from(allFeeTypeNames).sort();
@@ -60,7 +66,7 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
     years.forEach(year => {
         cellData[year] = {};
         yearlyTotals[year] = { total: 0, paid: 0, pending: 0, concession: 0 };
-        const feeItemsForYear = masterFeeDetails[year] || [];
+        const feeItemsForYear = mergedFeeDetails[year] || [];
 
         feeTypes.forEach(feeType => {
             const feeItem = feeItemsForYear.find(item => item.name === feeType);

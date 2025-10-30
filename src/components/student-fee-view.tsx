@@ -9,19 +9,27 @@ import { OutstandingInvoices } from "@/components/fee-collection/OutstandingInvo
 import { PaymentHistory } from "@/components/fee-collection/PaymentHistory";
 
 interface StudentFeeViewProps {
-  student: StudentDetails;
+  studentRecords: StudentDetails[];
   payments: Payment[];
   invoices: Invoice[];
 }
 
-export function StudentFeeView({ student, payments, invoices }: StudentFeeViewProps) {
-  const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
-    if (!student) return null;
+export function StudentFeeView({ studentRecords, payments, invoices }: StudentFeeViewProps) {
+  const student = studentRecords[studentRecords.length - 1];
 
-    const masterFeeDetails = student.fee_details || {};
-    const years = Object.keys(masterFeeDetails).sort();
+  const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
+    if (studentRecords.length === 0) return null;
+
+    const mergedFeeDetails = studentRecords.reduce<{[year: string]: any[]}>((acc, record) => {
+        if (record.fee_details) {
+            Object.assign(acc, record.fee_details);
+        }
+        return acc;
+    }, {});
+
+    const years = Object.keys(mergedFeeDetails).sort();
     const allFeeTypeNames = new Set<string>();
-    Object.values(masterFeeDetails).forEach(items => {
+    Object.values(mergedFeeDetails).forEach(items => {
         items.forEach(item => allFeeTypeNames.add(item.name));
     });
     const feeTypes = Array.from(allFeeTypeNames).sort();
@@ -37,7 +45,7 @@ export function StudentFeeView({ student, payments, invoices }: StudentFeeViewPr
     years.forEach(year => {
         cellData[year] = {};
         yearlyTotals[year] = { total: 0, paid: 0, pending: 0, concession: 0 };
-        const feeItemsForYear = masterFeeDetails[year] || [];
+        const feeItemsForYear = mergedFeeDetails[year] || [];
 
         feeTypes.forEach(feeType => {
             const feeItem = feeItemsForYear.find(item => item.name === feeType);
@@ -68,7 +76,7 @@ export function StudentFeeView({ student, payments, invoices }: StudentFeeViewPr
     overallTotals.pending = Math.max(0, overallTotals.total - overallTotals.concession - overallTotals.paid);
 
     return { years, feeTypes, cellData, yearlyTotals, overallTotals };
-  }, [student, payments]);
+  }, [studentRecords, payments]);
 
   return (
     <div className="space-y-6">
@@ -87,7 +95,7 @@ export function StudentFeeView({ student, payments, invoices }: StudentFeeViewPr
 
       <OutstandingInvoices 
         invoices={invoices} 
-        studentRecords={[student]} 
+        studentRecords={studentRecords} 
         cashierProfile={null} 
         onSuccess={() => {}} 
         logActivity={async () => {}} 

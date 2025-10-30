@@ -12,7 +12,7 @@ import { StudentFeeView } from '@/components/student-fee-view';
 export default function StudentFeesPage() {
   const [rollNumber, setRollNumber] = useState('');
   const [academicYear, setAcademicYear] = useState('');
-  const [student, setStudent] = useState<StudentDetails | null>(null);
+  const [studentRecords, setStudentRecords] = useState<StudentDetails[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,35 +24,36 @@ export default function StudentFeesPage() {
       return;
     }
     setIsLoading(true);
-    setStudent(null);
+    setStudentRecords([]);
     setPayments([]);
     setInvoices([]);
 
-    const { data: studentRecords, error } = await supabase
+    let query = supabase
       .from('students')
       .select('*, student_types(name), academic_years(*)')
-      .eq('roll_number', rollNumber)
-      .order('created_at', { ascending: true });
-
-    if (error || !studentRecords || studentRecords.length === 0) {
-      toast.error("Student not found.");
-      setIsLoading(false);
-      return;
-    }
+      .eq('roll_number', rollNumber);
 
     if (academicYear) {
-      const recordInYear = studentRecords.find(s => s.academic_years?.year_name === academicYear);
-      if (!recordInYear) {
-        toast.error(`Student with roll number ${rollNumber} not found for academic year ${academicYear}.`);
+      const { data: ayData } = await supabase.from('academic_years').select('id').eq('year_name', academicYear).single();
+      if (ayData) {
+        query = query.eq('academic_year_id', ayData.id);
+      } else {
+        toast.error(`Academic Year "${academicYear}" not found. Please use the format YYYY-YYYY.`);
         setIsLoading(false);
         return;
       }
     }
+    
+    const { data, error } = await query.order('created_at', { ascending: true });
 
-    const masterStudent = studentRecords[studentRecords.length - 1] as StudentDetails;
-    setStudent(masterStudent);
+    if (error || !data || data.length === 0) {
+      toast.error("Student not found for the provided details.");
+      setIsLoading(false);
+      return;
+    }
 
-    const studentIds = studentRecords.map(s => s.id);
+    setStudentRecords(data as StudentDetails[]);
+    const studentIds = data.map(s => s.id);
 
     const [paymentsRes, invoicesRes] = await Promise.all([
       supabase.from('payments').select('*').in('student_id', studentIds).order('created_at', { ascending: false }),
@@ -102,9 +103,9 @@ export default function StudentFeesPage() {
           </Card>
         </div>
 
-        {student && (
+        {studentRecords.length > 0 && (
           <div className="print-area">
-            <StudentFeeView student={student} payments={payments} invoices={invoices} />
+            <StudentFeeView studentRecords={studentRecords} payments={payments} invoices={invoices} />
           </div>
         )}
       </div>
