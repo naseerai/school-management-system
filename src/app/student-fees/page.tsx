@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { StudentDetails, Payment, Invoice } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,39 +30,28 @@ export default function StudentFeesPage() {
     setPayments([]);
     setInvoices([]);
 
-    const { data: allStudentRecords, error } = await supabase
-      .from('students')
-      .select('*, student_types(name), academic_years(*)')
-      .eq('roll_number', rollNumber)
-      .order('created_at', { ascending: true });
+    try {
+      const response = await fetch('/api/student-fees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rollNumber, academicYear }),
+      });
 
-    if (error || !allStudentRecords || allStudentRecords.length === 0) {
-      toast.error("Student not found.");
-      setIsLoading(false);
-      return;
-    }
+      const data = await response.json();
 
-    if (academicYear) {
-      const recordInYear = allStudentRecords.find(s => s.academic_years?.year_name === academicYear);
-      if (!recordInYear) {
-        toast.error(`Student with roll number ${rollNumber} was not enrolled in academic year ${academicYear}.`);
-        setIsLoading(false);
-        return;
+      if (!response.ok) {
+        throw new Error(data.error || 'An unknown error occurred.');
       }
+
+      setStudentRecords(data.studentRecords || []);
+      setPayments(data.payments || []);
+      setInvoices(data.invoices || []);
+
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
     }
-
-    setStudentRecords(allStudentRecords as StudentDetails[]);
-    const studentIds = allStudentRecords.map(s => s.id);
-
-    const [paymentsRes, invoicesRes] = await Promise.all([
-      supabase.from('payments').select('*').in('student_id', studentIds).order('created_at', { ascending: false }),
-      supabase.from('invoices').select('*').in('student_id', studentIds).eq('status', 'unpaid').order('due_date', { ascending: true })
-    ]);
-
-    if (paymentsRes.data) setPayments(paymentsRes.data);
-    if (invoicesRes.data) setInvoices(invoicesRes.data);
-    
-    setIsLoading(false);
   };
 
   const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
