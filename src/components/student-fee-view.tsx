@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Printer } from "lucide-react";
 import { StudentDetails, Payment, Invoice } from "@/types";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { StudentDetailsCard } from "@/components/fee-collection/StudentDetailsCard";
 import { FeeSummaryTable, FeeSummaryTableData } from "@/components/fee-collection/FeeSummaryTable";
@@ -17,10 +15,6 @@ interface StudentFeeViewProps {
 }
 
 export function StudentFeeView({ student, payments, invoices }: StudentFeeViewProps) {
-  const handlePrint = () => {
-    window.print();
-  };
-
   const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
     if (!student) return null;
 
@@ -80,18 +74,10 @@ export function StudentFeeView({ student, payments, invoices }: StudentFeeViewPr
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Student Fee Details</CardTitle>
-              <CardDescription>
-                A complete overview of your fees, payments, and outstanding balances.
-              </CardDescription>
-            </div>
-            <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2 print-hidden">
-              <Printer className="h-4 w-4" />
-              Print
-            </Button>
-          </div>
+          <CardTitle>Student Fee Details</CardTitle>
+          <CardDescription>
+            A complete overview of your fees, payments, and outstanding balances.
+          </CardDescription>
         </CardHeader>
       </Card>
       

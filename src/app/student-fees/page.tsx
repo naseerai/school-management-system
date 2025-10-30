@@ -19,8 +19,8 @@ export default function StudentFeesPage() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rollNumber || !academicYear) {
-      toast.error("Please enter both Roll Number and Academic Year.");
+    if (!rollNumber) {
+      toast.error("Please enter a Roll Number.");
       return;
     }
     setIsLoading(true);
@@ -28,39 +28,40 @@ export default function StudentFeesPage() {
     setPayments([]);
     setInvoices([]);
 
-    const { data: ayData, error: ayError } = await supabase
-      .from('academic_years')
-      .select('id')
-      .eq('year_name', academicYear)
-      .single();
+    const { data: studentRecords, error } = await supabase
+      .from('students')
+      .select('*, student_types(name), academic_years(*)')
+      .eq('roll_number', rollNumber)
+      .order('created_at', { ascending: true });
 
-    if (ayError || !ayData) {
-      toast.error("Academic Year not found. Please use the format YYYY-YYYY.");
+    if (error || !studentRecords || studentRecords.length === 0) {
+      toast.error("Student not found.");
       setIsLoading(false);
       return;
     }
 
-    const { data, error } = await supabase
-      .from('students')
-      .select('*, student_types(name), academic_years(*)')
-      .eq('roll_number', rollNumber)
-      .eq('academic_year_id', ayData.id)
-      .single();
-
-    if (error || !data) {
-      toast.error("Student not found for the provided details.");
-    } else {
-      const studentData = data as StudentDetails;
-      setStudent(studentData);
-
-      const [paymentsRes, invoicesRes] = await Promise.all([
-        supabase.from('payments').select('*').eq('student_id', studentData.id).order('created_at', { ascending: false }),
-        supabase.from('invoices').select('*').eq('student_id', studentData.id).eq('status', 'unpaid').order('due_date', { ascending: true })
-      ]);
-
-      if (paymentsRes.data) setPayments(paymentsRes.data);
-      if (invoicesRes.data) setInvoices(invoicesRes.data);
+    if (academicYear) {
+      const recordInYear = studentRecords.find(s => s.academic_years?.year_name === academicYear);
+      if (!recordInYear) {
+        toast.error(`Student with roll number ${rollNumber} not found for academic year ${academicYear}.`);
+        setIsLoading(false);
+        return;
+      }
     }
+
+    const masterStudent = studentRecords[studentRecords.length - 1] as StudentDetails;
+    setStudent(masterStudent);
+
+    const studentIds = studentRecords.map(s => s.id);
+
+    const [paymentsRes, invoicesRes] = await Promise.all([
+      supabase.from('payments').select('*').in('student_id', studentIds).order('created_at', { ascending: false }),
+      supabase.from('invoices').select('*').in('student_id', studentIds).eq('status', 'unpaid').order('due_date', { ascending: true })
+    ]);
+
+    if (paymentsRes.data) setPayments(paymentsRes.data);
+    if (invoicesRes.data) setInvoices(invoicesRes.data);
+    
     setIsLoading(false);
   };
 
@@ -85,7 +86,7 @@ export default function StudentFeesPage() {
                   />
                 </div>
                 <div className="flex-grow">
-                  <label htmlFor="academic_year" className="text-sm font-medium">Academic Year</label>
+                  <label htmlFor="academic_year" className="text-sm font-medium">Academic Year (Optional)</label>
                   <Input
                     id="academic_year"
                     placeholder="e.g., 2024-2025"
