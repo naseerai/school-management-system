@@ -44,13 +44,14 @@ export type FeeSummaryTableData = {
 
 interface FeeSummaryTableProps {
   data: FeeSummaryTableData | null;
-  onPay: (feeType: string) => void;
-  onCollectOther: () => void;
-  hasDiscountPermission: boolean;
-  onEditConcession: () => void;
+  onPay?: (feeType: string) => void;
+  onCollectOther?: () => void;
+  hasDiscountPermission?: boolean;
+  onEditConcession?: () => void;
+  isReadOnly?: boolean;
 }
 
-export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermission, onEditConcession }: FeeSummaryTableProps) {
+export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermission, onEditConcession, isReadOnly = false }: FeeSummaryTableProps) {
   if (!data) return null;
 
   const { years, feeTypes, cellData, yearlyTotals, overallTotals } = data;
@@ -62,7 +63,7 @@ export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermis
             <CardTitle>Fee Summary</CardTitle>
             <CardDescription>Detailed breakdown of fees across all academic years.</CardDescription>
         </div>
-        <Button onClick={onCollectOther}>Collect Other Payment</Button>
+        {!isReadOnly && <Button onClick={onCollectOther}>Collect Other Payment</Button>}
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -74,7 +75,7 @@ export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermis
                   <TableHead key={year} colSpan={3} className="text-center border-l">{year}</TableHead>
                 ))}
                 <TableHead rowSpan={2} className="border-l align-middle">Overall Balance</TableHead>
-                <TableHead rowSpan={2} className="border-l align-middle">Actions</TableHead>
+                {!isReadOnly && <TableHead rowSpan={2} className="border-l align-middle">Actions</TableHead>}
               </TableRow>
               <TableRow>
                 {years.map(year => (
@@ -106,9 +107,11 @@ export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermis
                       return rowPending.toFixed(2);
                     })()}
                   </TableCell>
-                  <TableCell className="text-center border-l">
-                    <Button size="sm" variant="outline" onClick={() => onPay(feeType)}>Pay</Button>
-                  </TableCell>
+                  {!isReadOnly && (
+                    <TableCell className="text-center border-l">
+                      <Button size="sm" variant="outline" onClick={() => onPay?.(feeType)}>Pay</Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
               
@@ -122,11 +125,13 @@ export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermis
                 <TableCell className="text-center text-orange-600 border-l">
                   - {overallTotals.concession.toFixed(2)}
                 </TableCell>
-                <TableCell className="text-center border-l">
-                  {hasDiscountPermission && (
-                    <Button size="sm" variant="secondary" onClick={onEditConcession}>Edit</Button>
-                  )}
-                </TableCell>
+                {!isReadOnly && (
+                  <TableCell className="text-center border-l">
+                    {hasDiscountPermission && (
+                      <Button size="sm" variant="secondary" onClick={onEditConcession}>Edit</Button>
+                    )}
+                  </TableCell>
+                )}
               </TableRow>
 
               <TableRow className="bg-muted/50 font-bold text-sm">
@@ -144,7 +149,7 @@ export function FeeSummaryTable({ data, onPay, onCollectOther, hasDiscountPermis
                 <TableCell className="text-center border-l text-red-600">
                   {overallTotals.pending.toFixed(2)}
                 </TableCell>
-                <TableCell className="border-l"></TableCell>
+                {!isReadOnly && <TableCell className="border-l"></TableCell>}
               </TableRow>
             </TableBody>
           </Table>

@@ -1,88 +1,114 @@
 "use client";
 
+import { useMemo } from "react";
 import { Printer } from "lucide-react";
-import { StudentDetails } from "@/types";
+import { StudentDetails, Payment, Invoice } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { StudentDetailsCard } from "@/components/fee-collection/StudentDetailsCard";
+import { FeeSummaryTable, FeeSummaryTableData } from "@/components/fee-collection/FeeSummaryTable";
+import { OutstandingInvoices } from "@/components/fee-collection/OutstandingInvoices";
+import { PaymentHistory } from "@/components/fee-collection/PaymentHistory";
 
 interface StudentFeeViewProps {
   student: StudentDetails;
+  payments: Payment[];
+  invoices: Invoice[];
 }
 
-export function StudentFeeView({ student }: StudentFeeViewProps) {
+export function StudentFeeView({ student, payments, invoices }: StudentFeeViewProps) {
   const handlePrint = () => {
     window.print();
   };
 
-  const feeDetails = student.fee_details || {};
-  const years = Object.keys(feeDetails).sort();
+  const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
+    if (!student) return null;
+
+    const masterFeeDetails = student.fee_details || {};
+    const years = Object.keys(masterFeeDetails).sort();
+    const allFeeTypeNames = new Set<string>();
+    Object.values(masterFeeDetails).forEach(items => {
+        items.forEach(item => allFeeTypeNames.add(item.name));
+    });
+    const feeTypes = Array.from(allFeeTypeNames).sort();
+
+    const paymentsByFeeType: { [type: string]: number } = {};
+    payments.forEach(p => {
+        paymentsByFeeType[p.fee_type] = (paymentsByFeeType[p.fee_type] || 0) + p.amount;
+    });
+
+    const cellData: FeeSummaryTableData['cellData'] = {};
+    const yearlyTotals: FeeSummaryTableData['yearlyTotals'] = {};
+
+    years.forEach(year => {
+        cellData[year] = {};
+        yearlyTotals[year] = { total: 0, paid: 0, pending: 0, concession: 0 };
+        const feeItemsForYear = masterFeeDetails[year] || [];
+
+        feeTypes.forEach(feeType => {
+            const feeItem = feeItemsForYear.find(item => item.name === feeType);
+            if (feeItem) {
+                const total = feeItem.amount;
+                const concession = feeItem.concession || 0;
+                const paid = paymentsByFeeType[`${year} - ${feeType}`] || 0;
+                const pending = Math.max(0, total - concession - paid);
+
+                cellData[year][feeType] = { total, paid, pending };
+
+                yearlyTotals[year].total += total;
+                yearlyTotals[year].paid += paid;
+                yearlyTotals[year].concession += concession;
+            } else {
+                cellData[year][feeType] = { total: 0, paid: 0, pending: 0 };
+            }
+        });
+        yearlyTotals[year].pending = Math.max(0, yearlyTotals[year].total - yearlyTotals[year].concession - yearlyTotals[year].paid);
+    });
+
+    const overallTotals: FeeSummaryTableData['overallTotals'] = { total: 0, paid: 0, pending: 0, concession: 0 };
+    Object.values(yearlyTotals).forEach(yearTotal => {
+        overallTotals.total += yearTotal.total;
+        overallTotals.paid += yearTotal.paid;
+        overallTotals.concession += yearTotal.concession;
+    });
+    overallTotals.pending = Math.max(0, overallTotals.total - overallTotals.concession - overallTotals.paid);
+
+    return { years, feeTypes, cellData, yearlyTotals, overallTotals };
+  }, [student, payments]);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Fee Structure</CardTitle>
-            <CardDescription>
-              A detailed breakdown of your fee structure across all academic years.
-            </CardDescription>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Student Fee Details</CardTitle>
+              <CardDescription>
+                A complete overview of your fees, payments, and outstanding balances.
+              </CardDescription>
+            </div>
+            <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2 print-hidden">
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
           </div>
-          <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2 print:hidden">
-            <Printer className="h-4 w-4" />
-            Print
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6 border-b pb-4">
-          <div><p className="font-medium">Name</p><p>{student.name}</p></div>
-          <div><p className="font-medium">Roll No</p><p>{student.roll_number}</p></div>
-          <div><p className="font-medium">Class</p><p>{student.class} - {student.section}</p></div>
-          <div><p className="font-medium">Student Type</p><p>{student.student_types?.name}</p></div>
-        </div>
+        </CardHeader>
+      </Card>
+      
+      <StudentDetailsCard student={student} />
+      
+      <FeeSummaryTable data={feeSummaryData} isReadOnly={true} />
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Year</TableHead>
-              <TableHead>Fee Type</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-right">Concession</TableHead>
-              <TableHead className="text-right">Net Amount</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {years.length > 0 ? (
-              years.map(year => (
-                feeDetails[year].map((item, index) => (
-                  <TableRow key={`${year}-${item.id}`}>
-                    {index === 0 && (
-                      <TableCell rowSpan={feeDetails[year].length} className="font-medium align-top">
-                        {year}
-                      </TableCell>
-                    )}
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell className="text-right">{item.amount.toFixed(2)}</TableCell>
-                    <TableCell className="text-right text-orange-600">
-                      - {item.concession.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold">
-                      {(item.amount - item.concession).toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center">
-                  No fee structure details found for this student.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+      <OutstandingInvoices 
+        invoices={invoices} 
+        studentRecords={[student]} 
+        cashierProfile={null} 
+        onSuccess={() => {}} 
+        logActivity={async () => {}} 
+        isReadOnly={true} 
+      />
+
+      <PaymentHistory payments={payments} student={student} isReadOnly={true} />
+    </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { StudentDetails } from '@/types';
+import { StudentDetails, Payment, Invoice } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ export default function StudentFeesPage() {
   const [rollNumber, setRollNumber] = useState('');
   const [academicYear, setAcademicYear] = useState('');
   const [student, setStudent] = useState<StudentDetails | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -23,6 +25,8 @@ export default function StudentFeesPage() {
     }
     setIsLoading(true);
     setStudent(null);
+    setPayments([]);
+    setInvoices([]);
 
     const { data: ayData, error: ayError } = await supabase
       .from('academic_years')
@@ -46,14 +50,23 @@ export default function StudentFeesPage() {
     if (error || !data) {
       toast.error("Student not found for the provided details.");
     } else {
-      setStudent(data as StudentDetails);
+      const studentData = data as StudentDetails;
+      setStudent(studentData);
+
+      const [paymentsRes, invoicesRes] = await Promise.all([
+        supabase.from('payments').select('*').eq('student_id', studentData.id).order('created_at', { ascending: false }),
+        supabase.from('invoices').select('*').eq('student_id', studentData.id).eq('status', 'unpaid').order('due_date', { ascending: true })
+      ]);
+
+      if (paymentsRes.data) setPayments(paymentsRes.data);
+      if (invoicesRes.data) setInvoices(invoicesRes.data);
     }
     setIsLoading(false);
   };
 
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col items-center p-4 sm:p-8">
-      <div className="w-full max-w-4xl space-y-6">
+      <div className="w-full max-w-6xl space-y-6">
         <div className="print-hidden">
           <Card>
             <CardHeader>
@@ -89,8 +102,8 @@ export default function StudentFeesPage() {
         </div>
 
         {student && (
-          <div className="print-only">
-            <StudentFeeView student={student} />
+          <div className="print-area">
+            <StudentFeeView student={student} payments={payments} invoices={invoices} />
           </div>
         )}
       </div>

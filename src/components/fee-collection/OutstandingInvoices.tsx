@@ -14,9 +14,10 @@ interface OutstandingInvoicesProps {
   cashierProfile: CashierProfile | null;
   onSuccess: () => void;
   logActivity: (action: string, details: object, studentId: string) => Promise<void>;
+  isReadOnly?: boolean;
 }
 
-export function OutstandingInvoices({ invoices, studentRecords, cashierProfile, onSuccess, logActivity }: OutstandingInvoicesProps) {
+export function OutstandingInvoices({ invoices, studentRecords, cashierProfile, onSuccess, logActivity, isReadOnly = false }: OutstandingInvoicesProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [invoiceToPay, setInvoiceToPay] = useState<Invoice | null>(null);
 
@@ -38,21 +39,21 @@ export function OutstandingInvoices({ invoices, studentRecords, cashierProfile, 
         </CardHeader>
         <CardContent>
           <Table>
-            <TableHeader><TableRow><TableHead>Description</TableHead><TableHead>Total</TableHead><TableHead>Balance</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Description</TableHead><TableHead>Total</TableHead><TableHead>Balance</TableHead>{!isReadOnly && <TableHead>Action</TableHead>}</TableRow></TableHeader>
             <TableBody>
               {invoices.map(invoice => (
                 <TableRow key={invoice.id}>
                   <TableCell>{invoice.batch_description}</TableCell>
                   <TableCell>{invoice.total_amount.toFixed(2)}</TableCell>
                   <TableCell className="font-medium">{(invoice.total_amount - (invoice.paid_amount || 0)).toFixed(2)}</TableCell>
-                  <TableCell><Button size="sm" onClick={() => handlePayClick(invoice)}>Collect Payment</Button></TableCell>
+                  {!isReadOnly && <TableCell><Button size="sm" onClick={() => handlePayClick(invoice)}>Collect Payment</Button></TableCell>}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
-      {invoiceToPay && (
+      {!isReadOnly && invoiceToPay && (
         <InvoicePaymentDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}

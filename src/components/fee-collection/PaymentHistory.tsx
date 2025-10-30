@@ -10,9 +10,10 @@ import { PrintableReceipt } from "./PrintableReceipt";
 interface PaymentHistoryProps {
   payments: Payment[];
   student: StudentDetails;
+  isReadOnly?: boolean;
 }
 
-export function PaymentHistory({ payments, student }: PaymentHistoryProps) {
+export function PaymentHistory({ payments, student, isReadOnly = false }: PaymentHistoryProps) {
   const [paymentToPrint, setPaymentToPrint] = useState<Payment | null>(null);
 
   const handlePrint = (payment: Payment) => {
@@ -90,7 +91,7 @@ export function PaymentHistory({ payments, student }: PaymentHistoryProps) {
                 <TableHead>Date</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {!isReadOnly && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -100,17 +101,19 @@ export function PaymentHistory({ payments, student }: PaymentHistoryProps) {
                     <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>{p.fee_type}</TableCell>
                     <TableCell className="text-right">₹{p.amount.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="outline" size="sm" onClick={() => handlePrint(p)}>
-                        <Printer className="mr-2 h-4 w-4" />
-                        Print
-                      </Button>
-                    </TableCell>
+                    {!isReadOnly && (
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm" onClick={() => handlePrint(p)}>
+                          <Printer className="mr-2 h-4 w-4" />
+                          Print
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">No payments recorded.</TableCell>
+                  <TableCell colSpan={isReadOnly ? 3 : 4} className="text-center">No payments recorded.</TableCell>
                 </TableRow>
               )}
             </TableBody>
