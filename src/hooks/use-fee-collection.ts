@@ -70,7 +70,7 @@ export function useFeeCollection() {
       .from("students")
       .select("*, student_types(name), academic_years(*)")
       .eq("roll_number", values.roll_number)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
 
     if (error || !allStudentRecords || allStudentRecords.length === 0) {
       toast.error("Student not found.");

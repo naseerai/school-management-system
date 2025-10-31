@@ -40,7 +40,7 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
     defaultValues: { amount: 0, payment_method: "cash", notes: "", payment_year: "", fee_item_name: "" },
   });
   const watchedPaymentYear = form.watch("payment_year");
-  const masterFeeDetails = studentRecords.length > 0 ? studentRecords[studentRecords.length - 1].fee_details || {} : {};
+  const masterFeeDetails = studentRecords.length > 0 ? studentRecords[0].fee_details || {} : {};
 
   const handleFeeItemChange = (feeItemName: string, yearOverride?: string) => {
     form.setValue('fee_item_name', feeItemName);
@@ -99,7 +99,7 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
   }, [open, initialState, form, masterFeeDetails, payments]);
 
   const onSubmit = async (values: z.infer<typeof paymentSchema>) => {
-    const studentRecordForPayment = studentRecords.find(r => r.studying_year === values.payment_year) || studentRecords[studentRecords.length - 1];
+    const studentRecordForPayment = studentRecords.find(r => r.studying_year === values.payment_year) || studentRecords[0];
     
     if (!studentRecordForPayment) {
       toast.error("Cannot process payment: Student profile not found.");

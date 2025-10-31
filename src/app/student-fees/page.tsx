@@ -125,7 +125,7 @@ export default function StudentFeesPage() {
     return { years, feeTypes, cellData, yearlyTotals, overallTotals };
   }, [studentRecords, payments]);
 
-  const student = studentRecords.length > 0 ? studentRecords[studentRecords.length - 1] : null;
+  const student = studentRecords.length > 0 ? studentRecords[0] : null;
 
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col items-center p-4 sm:p-8">

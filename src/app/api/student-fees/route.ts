@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       .from('students')
       .select('*, student_types(name), academic_years(*)')
       .eq('roll_number', rollNumber)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
 
     const { data: allStudentRecords, error: studentError } = await studentQuery;
 
