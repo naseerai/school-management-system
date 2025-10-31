@@ -21,21 +21,18 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [editConcessionDialogOpen, setEditConcessionDialogOpen] = useState(false);
   const [paymentDialogInitialState, setPaymentDialogInitialState] = useState<{ fee_item_name: string, payment_year: string } | null>(null);
-  const [paymentToPrint, setPaymentToPrint] = useState<Payment | null>(null);
+  const [receiptData, setReceiptData] = useState<{ payment: Payment; student: StudentDetails } | null>(null);
 
-  const handlePrint = (payment: Payment) => {
-    setPaymentToPrint(payment);
+  const handlePaymentSuccess = (newPayment: Payment, studentForReceipt: StudentDetails) => {
+    onSuccess();
+    toast.success("Payment recorded successfully!");
+    
+    setReceiptData({ payment: newPayment, student: studentForReceipt });
     setTimeout(() => {
       window.print();
       // Clear after printing to remove the print-only content from the DOM
-      setTimeout(() => setPaymentToPrint(null), 100);
+      setTimeout(() => setReceiptData(null), 100);
     }, 100);
-  };
-
-  const handlePaymentSuccess = (newPayment: Payment) => {
-    onSuccess();
-    toast.success("Payment recorded successfully!");
-    handlePrint(newPayment);
   };
 
   const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
@@ -114,14 +111,14 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
 
   return (
     <>
-      {paymentToPrint && studentRecords.length > 0 && (
+      {receiptData && (
         <div className="print-only">
           <div className="print-container">
             <div className="receipt-wrapper">
-              <PrintableReceipt student={studentRecords[0]} payment={paymentToPrint} copyType="School Management Copy" />
+              <PrintableReceipt student={receiptData.student} payment={receiptData.payment} copyType="School Management Copy" />
             </div>
             <div className="receipt-wrapper">
-              <PrintableReceipt student={studentRecords[0]} payment={paymentToPrint} copyType="Student Copy" />
+              <PrintableReceipt student={receiptData.student} payment={receiptData.payment} copyType="Student Copy" />
             </div>
           </div>
         </div>

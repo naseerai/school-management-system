@@ -28,7 +28,7 @@ interface PaymentDialogProps {
   studentRecords: StudentDetails[];
   payments: Payment[];
   cashierProfile: CashierProfile | null;
-  onSuccess: (newPayment: Payment) => void;
+  onSuccess: (newPayment: Payment, studentRecord: StudentDetails) => void;
   logActivity: (action: string, details: object, studentId: string) => Promise<void>;
   initialState: { fee_item_name: string, payment_year: string } | null;
 }
@@ -123,7 +123,7 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
     } else {
       await logActivity("Fee Collection", { ...values, fee_type: feeTypeForDb }, studentRecordForPayment.id);
       onOpenChange(false);
-      onSuccess(newPayment as Payment);
+      onSuccess(newPayment as Payment, studentRecordForPayment);
     }
     setIsSubmitting(false);
   };
