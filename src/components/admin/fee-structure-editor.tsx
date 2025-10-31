@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +60,7 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
       const initialStructure: FeeStructure = {};
       FIXED_YEARS.forEach(year => {
         initialStructure[year] = BASE_FEE_TYPES.map(feeType => ({
-          id: crypto.randomUUID(),
+          id: uuidv4(),
           name: feeType,
           amount: 0,
           concession: 0,
@@ -86,7 +87,7 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
     }
     const newValue = { ...value };
     newValue[trimmedYear] = feeTypes.map(feeType => ({
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       name: feeType,
       amount: 0,
       concession: 0,
@@ -110,7 +111,7 @@ export function FeeStructureEditor({ value, onChange }: FeeStructureEditorProps)
     years.forEach(year => {
       if (!newValue[year]) newValue[year] = [];
       newValue[year].push({
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         name: trimmedFeeType,
         amount: 0,
         concession: 0,
