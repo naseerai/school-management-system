@@ -25,7 +25,6 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment): 
         <div><strong>Student Name:</strong> ${student.name}</div>
         <div><strong>Roll No:</strong> ${student.roll_number}</div>
         <div><strong>Class:</strong> ${student.class} - ${student.section}</div>
-        <div><strong>Academic Year:</strong> ${student.academic_years?.year_name || 'N/A'}</div>
       </section>
       <section class="items-section">
         <table>
@@ -63,7 +62,6 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment): 
           <p><strong>Amount in Words:</strong> ${numberToWords(payment.amount)}</p>
         </div>
         <div class="signature-section">
-          <p>This is a computer-generated receipt.</p>
           <div class="signatory">
             <div class="signature-space"></div>
             <p>Authorized Signatory</p>

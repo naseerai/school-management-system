@@ -44,7 +44,7 @@ export function Sidebar({ userRole, isExpanded }: { userRole: 'admin' | 'cashier
       "fixed inset-y-0 left-0 z-10 hidden flex-col border-r bg-background sm:flex transition-all duration-300 print:hidden",
       isExpanded ? "w-56" : "w-14"
     )}>
-      <div className="flex h-full max-h-screen flex-col gap-2">
+      <div className="flex h-full max-h-screen flex-col">
         <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
           <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
             <Package2 className="h-6 w-6" />
@@ -87,6 +87,11 @@ export function Sidebar({ userRole, isExpanded }: { userRole: 'admin' | 'cashier
               ))}
             </TooltipProvider>
           </nav>
+        </div>
+        <div className="mt-auto p-2">
+          <p className="text-center text-xs text-muted-foreground">
+            {isExpanded ? "Sanju Animations" : "SA"}
+          </p>
         </div>
       </div>
     </aside>
