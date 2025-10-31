@@ -79,20 +79,15 @@
 }
 
 @media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
   .print-hidden {
     display: none !important;
   }
   body * {
     visibility: hidden;
-  }
-  .print-area, .print-area * {
-    visibility: visible;
-  }
-  .print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
   }
   .print-only, .print-only * {
     visibility: visible;
@@ -104,26 +99,26 @@
     width: 100%;
     height: 100%;
   }
-  .print-container, .receipt-container, .receipt-container * {
-    background: white !important;
-    color: black !important;
-    -webkit-print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
   .print-container {
     display: flex;
     flex-direction: column;
     height: 100%;
+    width: 100%;
+  }
+  .receipt-wrapper {
+    height: 50%;
+    box-sizing: border-box;
+    page-break-inside: avoid;
   }
   .receipt-container {
-    height: 50%;
-    padding: 1rem;
-    box-sizing: border-box;
+    height: 100%;
     display: flex;
     flex-direction: column;
+    background: white !important;
+    color: black !important;
   }
   @page {
     size: A4;
-    margin: 1.5cm;
+    margin: 1cm;
   }
 }

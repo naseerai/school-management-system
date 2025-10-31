@@ -117,11 +117,11 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
       {paymentToPrint && studentRecords.length > 0 && (
         <div className="print-only">
           <div className="print-container">
-            <div className="print-receipt">
-              <PrintableReceipt student={studentRecords[0]} payments={[paymentToPrint]} />
+            <div className="receipt-wrapper">
+              <PrintableReceipt student={studentRecords[0]} payment={paymentToPrint} copyType="School Management Copy" />
             </div>
-            <div className="print-receipt">
-              <PrintableReceipt student={studentRecords[0]} payments={[paymentToPrint]} />
+            <div className="receipt-wrapper">
+              <PrintableReceipt student={studentRecords[0]} payment={paymentToPrint} copyType="Student Copy" />
             </div>
           </div>
         </div>

@@ -27,59 +27,6 @@ export function PaymentHistory({ payments, student, isReadOnly = false }: Paymen
 
   return (
     <>
-      <style jsx global>{`
-        @media print {
-          body {
-            background: white !important;
-            color: black !important;
-          }
-          
-          .print-hidden {
-            display: none !important;
-          }
-          
-          .print-only {
-            display: block !important;
-          }
-          
-          .print-container {
-            width: 100%;
-            background: white;
-            color: black;
-          }
-          
-          /* Force light theme for print */
-          * {
-            background: white !important;
-            color: black !important;
-            border-color: #e5e7eb !important;
-          }
-          
-          /* Preserve intentional backgrounds */
-          .bg-gray-50,
-          [class*="bg-"] {
-            background: #f9fafb !important;
-          }
-          
-          /* Page break control */
-          .print-receipt {
-            page-break-after: always;
-            break-after: always;
-          }
-          
-          .print-receipt:last-child {
-            page-break-after: auto;
-            break-after: auto;
-          }
-        }
-        
-        @media screen {
-          .print-only {
-            display: none !important;
-          }
-        }
-      `}</style>
-
       <Card className="print-hidden">
         <CardHeader>
           <CardTitle>Overall Payment History</CardTitle>
@@ -124,11 +71,11 @@ export function PaymentHistory({ payments, student, isReadOnly = false }: Paymen
       {paymentToPrint && (
         <div className="print-only">
           <div className="print-container">
-            <div className="print-receipt">
-              <PrintableReceipt student={student} payments={[paymentToPrint]} />
+            <div className="receipt-wrapper">
+              <PrintableReceipt student={student} payment={paymentToPrint} copyType="School Management Copy" />
             </div>
-            <div className="print-receipt">
-              <PrintableReceipt student={student} payments={[paymentToPrint]} />
+            <div className="receipt-wrapper">
+              <PrintableReceipt student={student} payment={paymentToPrint} copyType="Student Copy" />
             </div>
           </div>
         </div>

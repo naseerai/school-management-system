@@ -2,61 +2,87 @@
 
 import React from 'react';
 import { Payment, StudentDetails } from "@/types";
+import { numberToWords } from '@/lib/utils';
 
 interface PrintableReceiptProps {
   student: StudentDetails;
-  payments: Payment[];
+  payment: Payment;
+  copyType: "School Management Copy" | "Student Copy";
 }
 
-export function PrintableReceipt({ student, payments }: PrintableReceiptProps) {
-  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+export function PrintableReceipt({ student, payment, copyType }: PrintableReceiptProps) {
+  const paymentDate = new Date(payment.created_at).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
 
   return (
-    <div className="receipt-container text-black">
-      <header className="text-center mb-4">
-        <h1 className="text-xl font-bold text-black">Admin Portal</h1>
-        <h2 className="text-lg font-semibold text-black">Fee Receipt</h2>
+    <div className="receipt-container border border-black p-4 text-sm text-black bg-white">
+      <header className="text-center mb-4 border-b border-black pb-2">
+        <h1 className="text-2xl font-bold">SCHOOL/COLLEGE NAME</h1>
+        <p className="text-xs">123 Education Lane, Knowledge City, 500001</p>
+        <p className="text-xs">Phone: (123) 456-7890</p>
       </header>
-      
-      <section className="mb-4 text-sm">
-        <div className="flex justify-between">
-          <p><strong className="font-bold text-black">Date:</strong> {new Date().toLocaleDateString()}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-x-4 mt-2">
-          <p><strong className="font-bold text-black">Name:</strong> {student.name}</p>
-          <p><strong className="font-bold text-black">Roll No:</strong> {student.roll_number}</p>
-          <p><strong className="font-bold text-black">Class:</strong> {student.class}-{student.section}</p>
-        </div>
+
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-lg font-semibold">FEE RECEIPT</h2>
+        <p className="font-medium text-xs border border-black px-2 py-1">{copyType}</p>
+      </div>
+
+      <section className="grid grid-cols-2 gap-x-4 gap-y-1 mb-4 border-b border-black pb-2">
+        <div><strong>Receipt No:</strong> {payment.id.substring(0, 8).toUpperCase()}</div>
+        <div><strong>Payment Date:</strong> {paymentDate}</div>
+        <div><strong>Student Name:</strong> {student.name}</div>
+        <div><strong>Roll No:</strong> {student.roll_number}</div>
+        <div><strong>Class:</strong> {student.class} - {student.section}</div>
+        <div><strong>Academic Year:</strong> {student.academic_years?.year_name || 'N/A'}</div>
       </section>
 
-      <section className="flex-grow">
-        <table className="w-full text-sm border-collapse border border-slate-400">
+      <section className="flex-grow mb-4">
+        <table className="w-full border-collapse">
           <thead>
-            <tr>
-              <th className="border border-slate-300 p-1 text-left font-bold text-black">Date</th>
-              <th className="border border-slate-300 p-1 text-left font-bold text-black">Description</th>
-              <th className="border border-slate-300 p-1 text-right font-bold text-black">Amount (INR)</th>
+            <tr className="border-b-2 border-black">
+              <th className="p-1 text-left font-bold w-12">S.No.</th>
+              <th className="p-1 text-left font-bold">Particulars</th>
+              <th className="p-1 text-right font-bold w-32">Amount (INR)</th>
             </tr>
           </thead>
           <tbody>
-            {payments.map(p => (
-              <tr key={p.id}>
-                <td className="border border-slate-300 p-1">{new Date(p.created_at).toLocaleDateString()}</td>
-                <td className="border border-slate-300 p-1">{p.fee_type}</td>
-                <td className="border border-slate-300 p-1 text-right">{p.amount.toFixed(2)}</td>
+            <tr>
+              <td className="p-1 align-top">1.</td>
+              <td className="p-1 align-top">{payment.fee_type}</td>
+              <td className="p-1 text-right align-top">{payment.amount.toFixed(2)}</td>
+            </tr>
+            {payment.notes && (
+              <tr>
+                <td></td>
+                <td className="p-1 text-xs text-gray-600">({payment.notes})</td>
+                <td></td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </section>
 
-      <footer className="mt-4 pt-2 border-t text-sm">
-        <div className="text-right mb-8">
-          <p className="font-bold text-black">Total Paid: {totalPaid.toFixed(2)}</p>
+      <footer className="pt-2 border-t-2 border-black">
+        <div className="flex justify-end mb-2">
+          <div className="w-1/2">
+            <div className="flex justify-between font-bold">
+              <span>Total Amount:</span>
+              <span>₹{payment.amount.toFixed(2)}</span>
+            </div>
+          </div>
         </div>
-        <div className="flex justify-between text-xs text-slate-600">
-          <p>Student/Parent Signature</p>
-          <p>Cashier Signature</p>
+        <div className="mb-8">
+          <p><strong>Amount in Words:</strong> {numberToWords(payment.amount)}</p>
+        </div>
+        <div className="flex justify-between items-end text-xs">
+          <p>This is a computer-generated receipt.</p>
+          <div className="text-center">
+            <div className="h-10"></div>
+            <p className="border-t border-black pt-1">Authorized Signatory</p>
+          </div>
         </div>
       </footer>
     </div>
