@@ -7,7 +7,7 @@ import { FeeSummaryTable, FeeSummaryTableData } from "@/components/fee-collectio
 import { PaymentDialog } from "@/components/fee-collection/PaymentDialog";
 import { EditConcessionDialog } from "@/components/fee-collection/EditConcessionDialog";
 import { StudentDetails, Payment, CashierProfile } from "@/types";
-import { PrintableReceipt } from "./PrintableReceipt";
+import { generateReceiptHtml } from "@/lib/receipt-generator";
 
 interface FeeSummaryProps {
   studentRecords: StudentDetails[];
@@ -21,18 +21,27 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [editConcessionDialogOpen, setEditConcessionDialogOpen] = useState(false);
   const [paymentDialogInitialState, setPaymentDialogInitialState] = useState<{ fee_item_name: string, payment_year: string } | null>(null);
-  const [receiptData, setReceiptData] = useState<{ payment: Payment; student: StudentDetails } | null>(null);
+
+  const handlePrint = (student: StudentDetails, payment: Payment) => {
+    const receiptHtml = generateReceiptHtml(student, payment);
+    const printWindow = window.open('', '_blank', 'height=800,width=800');
+    if (printWindow) {
+      printWindow.document.write(receiptHtml);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    } else {
+      toast.error("Could not open print window. Please disable your pop-up blocker.");
+    }
+  };
 
   const handlePaymentSuccess = (newPayment: Payment, studentForReceipt: StudentDetails) => {
     onSuccess();
     toast.success("Payment recorded successfully!");
-    
-    setReceiptData({ payment: newPayment, student: studentForReceipt });
-    setTimeout(() => {
-      window.print();
-      // Clear after printing to remove the print-only content from the DOM
-      setTimeout(() => setReceiptData(null), 100);
-    }, 100);
+    handlePrint(studentForReceipt, newPayment);
   };
 
   const feeSummaryData: FeeSummaryTableData | null = useMemo(() => {
@@ -111,18 +120,6 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
 
   return (
     <>
-      {receiptData && (
-        <div className="print-only">
-          <div className="print-container">
-            <div className="receipt-wrapper">
-              <PrintableReceipt student={receiptData.student} payment={receiptData.payment} copyType="School Management Copy" />
-            </div>
-            <div className="receipt-wrapper">
-              <PrintableReceipt student={receiptData.student} payment={receiptData.payment} copyType="Student Copy" />
-            </div>
-          </div>
-        </div>
-      )}
       <FeeSummaryTable
         data={feeSummaryData}
         onPay={handlePayClick}
