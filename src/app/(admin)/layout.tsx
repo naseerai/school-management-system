@@ -95,6 +95,8 @@ export default function AdminLayout({
     );
   }
 
+  const currentYear = new Date().getFullYear();
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <Sidebar userRole={userRole} isExpanded={isSidebarExpanded} />
@@ -106,6 +108,9 @@ export default function AdminLayout({
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
           {children}
         </main>
+        <footer className="text-center text-sm text-muted-foreground p-4 print:hidden">
+          © Copyrights {currentYear} Sanju Animations. All rights reserved Sanju Animations Team
+        </footer>
       </div>
     </div>
   );
