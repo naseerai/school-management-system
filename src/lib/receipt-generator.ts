@@ -71,6 +71,7 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Arial, sans-serif');
         html, body {
+          height: 100%;
           font-family: Arial, sans-serif;
           margin: 0;
           padding: 0;
@@ -81,8 +82,8 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
         .print-container {
           display: flex;
           flex-direction: column;
+          height: 100%;
           width: 100%;
-          height: 100vh;
         }
         .receipt-wrapper {
           height: 50%;
@@ -115,7 +116,6 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
         .total-paid { display: flex; justify-content: flex-end; padding: 12px 6px; font-size: 14px; }
         .total-paid strong:first-child { margin-right: 16px; }
         footer {
-          margin-top: auto;
           border-top: 2px solid #000;
           padding-top: 8px;
           text-align: center;
