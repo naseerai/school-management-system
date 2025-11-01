@@ -71,7 +71,6 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Arial, sans-serif');
         html, body {
-          height: 100%;
           font-family: Arial, sans-serif;
           margin: 0;
           padding: 0;
@@ -82,8 +81,8 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
         .print-container {
           display: flex;
           flex-direction: column;
-          height: 100%;
           width: 100%;
+          height: 100vh;
         }
         .receipt-wrapper {
           height: 50%;
@@ -107,7 +106,7 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
         .header-text { flex-grow: 1; text-align: center; }
         .header-text h1 { font-size: 18px; font-weight: bold; margin: 0; }
         .header-text p { margin: 0; font-size: 11px; }
-        .main-content { flex-grow: 1; padding: 8px 0; }
+        .main-content { padding: 8px 0; }
         .info-table { width: 100%; border-collapse: collapse; }
         .info-table td { border: 1px solid #000; padding: 6px; vertical-align: top; }
         .info-table strong { font-weight: bold; }
@@ -115,7 +114,13 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
         .text-right { text-align: right; }
         .total-paid { display: flex; justify-content: flex-end; padding: 12px 6px; font-size: 14px; }
         .total-paid strong:first-child { margin-right: 16px; }
-        footer { border-top: 2px solid #000; padding-top: 8px; text-align: center; font-size: 10px; }
+        footer {
+          margin-top: auto;
+          border-top: 2px solid #000;
+          padding-top: 8px;
+          text-align: center;
+          font-size: 10px;
+        }
         @page { size: A4; margin: 0; }
       </style>
     </head>
