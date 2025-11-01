@@ -23,5 +23,7 @@ export type Invoice = {
 };
 
 export type CashierProfile = {
-  id: string; has_discount_permission: boolean;
+  id: string;
+  name: string;
+  has_discount_permission: boolean;
 };

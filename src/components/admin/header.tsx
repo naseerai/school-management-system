@@ -64,6 +64,8 @@ export function Header({ userName, userRole, isSidebarExpanded, onToggleSidebar 
   
   const navItems = allNavItems.filter(item => item.roles.includes(userRole));
   const pageTitle = allNavItems.find(item => pathname.startsWith(item.href))?.label || "Admin";
+  const portalTitle = userRole === 'admin' ? 'Admin Portal' : 'Cashier Portal';
+  const homeLink = userRole === 'admin' ? '/dashboard' : '/fee-collection';
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -86,11 +88,11 @@ export function Header({ userName, userRole, isSidebarExpanded, onToggleSidebar 
         <SheetContent side="left" className="sm:max-w-xs">
           <nav className="grid gap-6 text-lg font-medium">
             <Link
-              href="/dashboard"
+              href={homeLink}
               className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
             >
               <Package2 className="h-5 w-5 transition-all group-hover:scale-110" />
-              <span className="sr-only">Admin Portal</span>
+              <span className="sr-only">{portalTitle}</span>
             </Link>
             {navItems.map(item => (
               <Link
@@ -116,7 +118,7 @@ export function Header({ userName, userRole, isSidebarExpanded, onToggleSidebar 
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href={userRole === 'admin' ? '/dashboard' : '/fee-collection'}>Dashboard</Link>
+              <Link href={homeLink}>Dashboard</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />

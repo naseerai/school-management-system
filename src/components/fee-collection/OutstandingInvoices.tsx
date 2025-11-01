@@ -5,8 +5,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Invoice, StudentDetails, CashierProfile } from "@/types";
+import { Invoice, StudentDetails, CashierProfile, Payment } from "@/types";
 import { InvoicePaymentDialog } from "./InvoicePaymentDialog";
+import { generateReceiptHtml } from "@/lib/receipt-generator";
+import { toast } from "sonner";
 
 interface OutstandingInvoicesProps {
   invoices: Invoice[];
@@ -24,6 +26,28 @@ export function OutstandingInvoices({ invoices, studentRecords, cashierProfile, 
   const handlePayClick = (invoice: Invoice) => {
     setInvoiceToPay(invoice);
     setDialogOpen(true);
+  };
+
+  const handlePrint = (student: StudentDetails, payment: Payment) => {
+    const receiptHtml = generateReceiptHtml(student, payment, cashierProfile?.name || null);
+    const printWindow = window.open('', '_blank', 'height=800,width=800');
+    if (printWindow) {
+      printWindow.document.write(receiptHtml);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    } else {
+      toast.error("Could not open print window. Please disable your pop-up blocker.");
+    }
+  };
+
+  const handlePaymentSuccess = (newPayment: Payment, studentRecord: StudentDetails) => {
+    onSuccess();
+    toast.success("Invoice payment recorded successfully!");
+    handlePrint(studentRecord, newPayment);
   };
 
   if (invoices.length === 0) {
@@ -60,7 +84,7 @@ export function OutstandingInvoices({ invoices, studentRecords, cashierProfile, 
           invoice={invoiceToPay}
           studentRecords={studentRecords}
           cashierProfile={cashierProfile}
-          onSuccess={onSuccess}
+          onSuccess={handlePaymentSuccess}
           logActivity={logActivity}
         />
       )}

@@ -1,75 +1,67 @@
 import { Payment, StudentDetails } from "@/types";
-import { numberToWords } from '@/lib/utils';
 
-export function generateReceiptHtml(student: StudentDetails, payment: Payment): string {
+export function generateReceiptHtml(student: StudentDetails, payment: Payment, cashierName: string | null): string {
   const paymentDate = new Date(payment.created_at).toLocaleDateString('en-IN', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
   });
 
-  const createCopy = (copyType: "School Management Copy" | "Student Copy") => `
-    <div class="receipt-container">
-      <header>
-        <h1>SCHOOL/COLLEGE NAME</h1>
-        <p>123 Education Lane, Knowledge City, 500001</p>
-        <p>Phone: (123) 456-7890</p>
-      </header>
-      <div class="title-section">
-        <h2>FEE RECEIPT</h2>
-        <p class="copy-type">${copyType}</p>
+  const createCopy = (copyType: "College Receipt" | "Student Receipt") => {
+    const title = copyType === 'College Receipt' ? 'College Receipt' : 'Student Receipt';
+    const cashierRow = copyType === 'College Receipt' && cashierName
+      ? `<tr><td colspan="2" class="meta-info"><strong>Cashier Name:</strong> ${cashierName}</td></tr>`
+      : '';
+
+    return `
+      <div class="receipt-container">
+        <div class="receipt-title">${title}</div>
+        <header>
+          <div class="logo-placeholder"></div>
+          <div class="header-text">
+            <h1>IDEAL COLLEGE OF ENGINEERING</h1>
+            <p>Vidyut Nagar kakinada - 533308</p>
+          </div>
+        </header>
+        <section class="main-content">
+          <table class="info-table">
+            ${cashierRow}
+            <tr>
+              <td colspan="2" class="meta-info">
+                <strong>FEE RECEIPT</strong>
+              </td>
+              <td colspan="2" class="meta-info text-right">
+                <strong>Date:</strong> ${paymentDate}
+              </td>
+            </tr>
+            <tr>
+              <td><strong>REG NO</strong></td>
+              <td><strong>Student Name</strong></td>
+              <td><strong>Class & Section</strong></td>
+              <td><strong>year of study</strong></td>
+            </tr>
+            <tr>
+              <td>${student.roll_number}</td>
+              <td>${student.name}</td>
+              <td>${student.class} - ${student.section}</td>
+              <td>${student.studying_year}</td>
+            </tr>
+            <tr>
+              <td colspan="2"><strong>Fee Type/Name:</strong> ${payment.fee_type}</td>
+              <td colspan="2" class="text-right"><strong>Amount</strong><br/>Rs.${payment.amount.toFixed(2)}</td>
+            </tr>
+          </table>
+          <div class="total-paid">
+            <strong>Total Paid Amount:</strong>
+            <strong>Rs.${payment.amount.toFixed(2)}/-</strong>
+          </div>
+        </section>
+        <footer>
+          <p>Note: This fee receipt was electronically generated no signature required</p>
+        </footer>
       </div>
-      <section class="details-grid">
-        <div><strong>Receipt No:</strong> ${payment.id.substring(0, 8).toUpperCase()}</div>
-        <div><strong>Payment Date:</strong> ${paymentDate}</div>
-        <div><strong>Student Name:</strong> ${student.name}</div>
-        <div><strong>Roll No:</strong> ${student.roll_number}</div>
-        <div><strong>Class:</strong> ${student.class} - ${student.section}</div>
-      </section>
-      <section class="items-section">
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 12%;">S.No.</th>
-              <th>Particulars</th>
-              <th style="width: 32%;">Amount (INR)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="align-top">1.</td>
-              <td class="align-top">${payment.fee_type}</td>
-              <td class="align-top text-right">${payment.amount.toFixed(2)}</td>
-            </tr>
-            ${payment.notes ? `
-              <tr>
-                <td></td>
-                <td class="notes">(${payment.notes})</td>
-                <td></td>
-              </tr>
-            ` : ''}
-          </tbody>
-        </table>
-      </section>
-      <footer>
-        <div class="total-section">
-          <div class="total-line">
-            <span>Total Amount:</span>
-            <span>₹${payment.amount.toFixed(2)}</span>
-          </div>
-        </div>
-        <div class="words-section">
-          <p><strong>Amount in Words:</strong> ${numberToWords(payment.amount)}</p>
-        </div>
-        <div class="signature-section">
-          <div class="signatory">
-            <div class="signature-space"></div>
-            <p>Authorized Signatory</p>
-          </div>
-        </div>
-      </footer>
-    </div>
-  `;
+    `;
+  };
 
   return `
     <!DOCTYPE html>
@@ -77,9 +69,9 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment): 
     <head>
       <title>Fee Receipt</title>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Arial, sans-serif');
         body {
-          font-family: 'Roboto', sans-serif;
+          font-family: Arial, sans-serif;
           margin: 0;
           padding: 0;
           background-color: #fff;
@@ -96,48 +88,39 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment): 
           height: 50%;
           box-sizing: border-box;
           page-break-inside: avoid;
-          padding: 1cm;
+          padding: 0.5cm;
         }
         .receipt-container {
           height: 100%;
           display: flex;
           flex-direction: column;
-          border: 1px solid #000;
-          padding: 16px;
-          font-size: 14px;
+          border: 2px solid #000;
+          padding: 12px;
+          font-size: 12px;
           color: #000;
           background-color: #fff;
         }
-        header { text-align: center; margin-bottom: 16px; border-bottom: 1px solid #000; padding-bottom: 8px; }
-        header h1 { font-size: 24px; font-weight: 700; margin: 0; }
-        header p { font-size: 12px; margin: 2px 0; }
-        .title-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .title-section h2 { font-size: 18px; font-weight: 600; margin: 0; }
-        .copy-type { font-weight: 500; font-size: 12px; border: 1px solid #000; padding: 4px 8px; }
-        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-bottom: 16px; border-bottom: 1px solid #000; padding-bottom: 8px; }
-        .items-section { flex-grow: 1; margin-bottom: 16px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 4px; }
-        th { text-align: left; font-weight: 700; }
-        thead tr { border-bottom: 2px solid #000; }
-        .align-top { vertical-align: top; }
+        .receipt-title { text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 8px; }
+        header { display: flex; align-items: center; text-align: center; padding-bottom: 8px; border-bottom: 2px solid #000; }
+        .logo-placeholder { width: 60px; height: 60px; border: 1px solid #ccc; margin-right: 16px; /* Placeholder for logo */ }
+        .header-text h1 { font-size: 18px; font-weight: bold; margin: 0; }
+        .header-text p { margin: 0; font-size: 11px; }
+        .main-content { flex-grow: 1; padding: 8px 0; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { border: 1px solid #000; padding: 6px; vertical-align: top; }
+        .info-table strong { font-weight: bold; }
+        .meta-info { border: none !important; padding: 8px 0; }
         .text-right { text-align: right; }
-        .notes { font-size: 12px; color: #555; }
-        footer { padding-top: 8px; border-top: 2px solid #000; }
-        .total-section { display: flex; justify-content: flex-end; margin-bottom: 8px; }
-        .total-line { width: 50%; display: flex; justify-content: space-between; font-weight: 700; }
-        .words-section { margin-bottom: 32px; }
-        .signature-section { display: flex; justify-content: space-between; align-items: flex-end; font-size: 12px; }
-        .signatory { text-align: center; }
-        .signature-space { height: 40px; }
-        .signatory p { border-top: 1px solid #000; padding-top: 4px; margin: 0; }
+        .total-paid { display: flex; justify-content: flex-end; padding: 12px 6px; font-size: 14px; }
+        .total-paid strong:first-child { margin-right: 16px; }
+        footer { border-top: 2px solid #000; padding-top: 8px; text-align: center; font-size: 10px; }
         @page { size: A4; margin: 0; }
       </style>
     </head>
     <body>
       <div class="print-container">
-        <div class="receipt-wrapper">${createCopy("School Management Copy")}</div>
-        <div class="receipt-wrapper">${createCopy("Student Copy")}</div>
+        <div class="receipt-wrapper">${createCopy("Student Receipt")}</div>
+        <div class="receipt-wrapper">${createCopy("College Receipt")}</div>
       </div>
     </body>
     </html>

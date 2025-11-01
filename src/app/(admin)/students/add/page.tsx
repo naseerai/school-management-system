@@ -5,7 +5,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import Papa from "papaparse";
 import { Check, ChevronsUpDown, PlusCircle } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +58,7 @@ import { AcademicYear } from "@/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FeeStructureEditor } from "@/components/admin/fee-structure-editor";
 import { CreatableCombobox } from "@/components/admin/creatable-combobox";
+import { BulkStudentUpload } from "@/components/admin/bulk-student-upload";
 
 // Types
 type FeeItem = { id: string; name: string; amount: number; concession: number };
@@ -231,6 +231,9 @@ export default function StudentsPage() {
                 </div>
               </form>
             </Form>
+          </TabsContent>
+          <TabsContent value="bulk" className="pt-6">
+            <BulkStudentUpload academicYears={academicYears} studentTypes={studentTypes} onSuccess={fetchData} />
           </TabsContent>
         </Tabs>
       </CardContent>

@@ -4,19 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
-import { Payment, StudentDetails } from "@/types";
+import { Payment, StudentDetails, CashierProfile } from "@/types";
 import { generateReceiptHtml } from '@/lib/receipt-generator';
 import { toast } from 'sonner';
 
 interface PaymentHistoryProps {
   payments: Payment[];
   student: StudentDetails;
+  cashierProfile: CashierProfile | null;
   isReadOnly?: boolean;
 }
 
-export function PaymentHistory({ payments, student, isReadOnly = false }: PaymentHistoryProps) {
+export function PaymentHistory({ payments, student, cashierProfile, isReadOnly = false }: PaymentHistoryProps) {
   const handlePrint = (payment: Payment) => {
-    const receiptHtml = generateReceiptHtml(student, payment);
+    const receiptHtml = generateReceiptHtml(student, payment, cashierProfile?.name || null);
     const printWindow = window.open('', '_blank', 'height=800,width=800');
     if (printWindow) {
       printWindow.document.write(receiptHtml);

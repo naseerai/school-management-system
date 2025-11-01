@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Invoice, StudentDetails, CashierProfile } from "@/types";
+import { Invoice, StudentDetails, CashierProfile, Payment } from "@/types";
 
 const invoicePaymentSchema = z.object({
   payment_year: z.string().min(1, "Please select a year"),
@@ -27,7 +27,7 @@ interface InvoicePaymentDialogProps {
   invoice: Invoice;
   studentRecords: StudentDetails[];
   cashierProfile: CashierProfile | null;
-  onSuccess: () => void;
+  onSuccess: (newPayment: Payment, studentRecord: StudentDetails) => void;
   logActivity: (action: string, details: object, studentId: string) => Promise<void>;
 }
 
@@ -53,14 +53,15 @@ export function InvoicePaymentDialog({ open, onOpenChange, invoice, studentRecor
   }, [invoice, currentYearRecord, form]);
 
   const onSubmit = async (values: z.infer<typeof invoicePaymentSchema>) => {
-    if (!studentRecords[0]) {
+    const studentRecordForPayment = studentRecords[0];
+    if (!studentRecordForPayment) {
       toast.error("Cannot process payment. Missing student context.");
       return;
     }
     setIsSubmitting(true);
 
     const paymentData = {
-      student_id: studentRecords[0].id,
+      student_id: studentRecordForPayment.id,
       cashier_id: cashierProfile?.id || null,
       amount: values.amount,
       payment_method: values.payment_method,
@@ -68,7 +69,7 @@ export function InvoicePaymentDialog({ open, onOpenChange, invoice, studentRecor
       notes: values.notes,
     };
 
-    const { error: paymentError } = await supabase.from('payments').insert(paymentData);
+    const { data: newPayment, error: paymentError } = await supabase.from('payments').insert(paymentData).select().single();
     if (paymentError) {
       toast.error(`Payment failed: ${paymentError.message}`);
       setIsSubmitting(false);
@@ -86,12 +87,11 @@ export function InvoicePaymentDialog({ open, onOpenChange, invoice, studentRecor
     if (invoiceError) {
       toast.error(`Payment recorded, but failed to update invoice status: ${invoiceError.message}`);
     } else {
-      toast.success("Invoice payment recorded successfully!");
-      await logActivity("Invoice Payment", { description: invoice.batch_description, amount: values.amount }, studentRecords[0].id);
+      await logActivity("Invoice Payment", { description: invoice.batch_description, amount: values.amount }, studentRecordForPayment.id);
     }
 
     onOpenChange(false);
-    onSuccess();
+    onSuccess(newPayment as Payment, studentRecordForPayment);
     setIsSubmitting(false);
   };
 

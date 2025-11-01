@@ -55,6 +55,7 @@ export default function FeeCollectionPage() {
             <PaymentHistory
               payments={payments}
               student={studentRecords[0]}
+              cashierProfile={cashierProfile}
             />
           </div>
         </>
