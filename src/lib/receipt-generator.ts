@@ -6,6 +6,7 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
     month: '2-digit',
     year: 'numeric'
   });
+  const currentYear = new Date().getFullYear();
 
   const createCopy = (copyType: "College Copy" | "Student Copy") => {
     const title = copyType;
@@ -57,7 +58,7 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
           </div>
         </section>
         <footer>
-          <p>Note: This fee receipt was electronically generated no signature required</p>
+          <p>© Copyrights ${currentYear} Sanju Animations. All rights reserved Sanju Animations Team</p>
         </footer>
       </div>
     `;
