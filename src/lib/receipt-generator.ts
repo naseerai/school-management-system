@@ -70,7 +70,8 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
       <title>Fee Receipt</title>
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Arial, sans-serif');
-        body {
+        html, body {
+          height: 100%;
           font-family: Arial, sans-serif;
           margin: 0;
           padding: 0;
@@ -81,7 +82,7 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
         .print-container {
           display: flex;
           flex-direction: column;
-          height: 100vh;
+          height: 100%;
           width: 100%;
         }
         .receipt-wrapper {
@@ -101,8 +102,9 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
           background-color: #fff;
         }
         .receipt-title { text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 8px; }
-        header { display: flex; align-items: center; text-align: center; padding-bottom: 8px; border-bottom: 2px solid #000; }
-        .logo-placeholder { width: 60px; height: 60px; border: 1px solid #ccc; margin-right: 16px; /* Placeholder for logo */ }
+        header { display: flex; align-items: center; padding-bottom: 8px; border-bottom: 2px solid #000; }
+        .logo-placeholder { width: 60px; height: 60px; border: 1px solid #ccc; margin-right: 16px; flex-shrink: 0; }
+        .header-text { flex-grow: 1; text-align: center; }
         .header-text h1 { font-size: 18px; font-weight: bold; margin: 0; }
         .header-text p { margin: 0; font-size: 11px; }
         .main-content { flex-grow: 1; padding: 8px 0; }
