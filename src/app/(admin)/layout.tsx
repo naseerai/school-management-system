@@ -101,14 +101,14 @@ export default function AdminLayout({
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <Sidebar userRole={userRole} isExpanded={isSidebarExpanded} />
       <div className={cn(
-        "flex flex-col sm:gap-4 sm:py-4 transition-all duration-300 print:p-0",
+        "flex flex-col min-h-screen transition-all duration-300 print:p-0",
         isSidebarExpanded ? "sm:pl-56 print:!pl-0" : "sm:pl-14 print:!pl-0"
       )}>
         <Header userName={userName} userRole={userRole} isSidebarExpanded={isSidebarExpanded} onToggleSidebar={() => setIsSidebarExpanded(prev => !prev)} />
-        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+        <main className="flex-1 grid items-start gap-4 p-4 sm:px-6 sm:py-4 md:gap-8">
           {children}
         </main>
-        <footer className="text-center text-sm text-muted-foreground p-4 print:hidden">
+        <footer className="text-center text-sm text-muted-foreground py-4 border-t bg-background print:hidden mt-auto">
           © Copyrights {currentYear} Sanju Animations. All rights reserved Sanju Animations Team
         </footer>
       </div>
