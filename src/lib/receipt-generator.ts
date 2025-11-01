@@ -7,6 +7,9 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
     year: 'numeric'
   });
 
+  // Using the first 8 characters of the payment UUID for a shorter, unique receipt number.
+  const receiptNo = `R-${payment.id.substring(0, 8).toUpperCase()}`;
+
   const createCopy = (copyType: "College Copy" | "Student Copy") => {
     const title = copyType;
     const cashierRow = copyType === 'College Copy' && cashierName
@@ -31,6 +34,7 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
                 <strong>FEE RECEIPT</strong>
               </td>
               <td colspan="2" class="meta-info text-right">
+                <strong>Receipt No:</strong> ${receiptNo}<br/>
                 <strong>Date:</strong> ${paymentDate}
               </td>
             </tr>
@@ -82,16 +86,13 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
         .print-container {
           display: flex;
           flex-direction: column;
-          height: 100vh;
+          height: 100%;
           width: 100%;
-          page-break-after: avoid;
-          page-break-inside: avoid;
         }
         .receipt-wrapper {
-          height: 48%;
+          height: 50%;
           box-sizing: border-box;
           page-break-inside: avoid;
-          page-break-after: avoid;
           padding: 0.5cm;
         }
         .receipt-container {
@@ -120,25 +121,11 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
         .total-paid strong:first-child { margin-right: 16px; }
         footer {
           border-top: 2px solid #000;
-          padding-top: 6px;
-          padding-bottom: 4px;
+          padding-top: 8px;
           text-align: center;
           font-size: 10px;
         }
-        @page { 
-          size: A4; 
-          margin: 0; 
-        }
-        @media print {
-          .print-container {
-            page-break-after: avoid;
-            page-break-inside: avoid;
-          }
-          .receipt-wrapper {
-            page-break-inside: avoid;
-            page-break-after: avoid;
-          }
-        }
+        @page { size: A4; margin: 0; }
       </style>
     </head>
     <body>
