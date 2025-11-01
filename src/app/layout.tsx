@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Admin Portal",
+  title: "School Management",
   description: "Admin portal for school management",
 };
 

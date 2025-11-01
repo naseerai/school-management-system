@@ -60,12 +60,14 @@ export function InvoicePaymentDialog({ open, onOpenChange, invoice, studentRecor
     }
     setIsSubmitting(true);
 
+    const feeName = invoice.batch_description.split(" for Class ")[0];
+
     const paymentData = {
       student_id: studentRecordForPayment.id,
       cashier_id: cashierProfile?.id || null,
       amount: values.amount,
       payment_method: values.payment_method,
-      fee_type: `${values.payment_year} - Invoice: ${invoice.batch_description}`,
+      fee_type: `${values.payment_year} - ${feeName}`,
       notes: values.notes,
     };
 

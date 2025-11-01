@@ -67,7 +67,7 @@ export function OutstandingInvoices({ invoices, studentRecords, cashierProfile, 
             <TableBody>
               {invoices.map(invoice => (
                 <TableRow key={invoice.id}>
-                  <TableCell>{invoice.batch_description}</TableCell>
+                  <TableCell>{invoice.batch_description.split(" for Class ")[0]}</TableCell>
                   <TableCell>{invoice.total_amount.toFixed(2)}</TableCell>
                   <TableCell className="font-medium">{(invoice.total_amount - (invoice.paid_amount || 0)).toFixed(2)}</TableCell>
                   {!isReadOnly && <TableCell><Button size="sm" onClick={() => handlePayClick(invoice)}>Collect Payment</Button></TableCell>}
