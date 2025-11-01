@@ -23,7 +23,7 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
   const [paymentDialogInitialState, setPaymentDialogInitialState] = useState<{ fee_item_name: string, payment_year: string } | null>(null);
 
   const handlePrint = (student: StudentDetails, payment: Payment) => {
-    const receiptHtml = generateReceiptHtml(student, payment);
+    const receiptHtml = generateReceiptHtml(student, payment, cashierProfile?.name || null);
     const printWindow = window.open('', '_blank', 'height=800,width=800');
     if (printWindow) {
       printWindow.document.write(receiptHtml);

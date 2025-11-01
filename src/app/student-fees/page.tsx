@@ -179,7 +179,7 @@ export default function StudentFeesPage() {
               isReadOnly={true} 
             />
 
-            <PaymentHistory payments={payments} student={student} isReadOnly={true} />
+            <PaymentHistory payments={payments} student={student} isReadOnly={true}/>
           </div>
         )}
       </div>

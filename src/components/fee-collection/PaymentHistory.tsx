@@ -11,11 +11,11 @@ import { toast } from 'sonner';
 interface PaymentHistoryProps {
   payments: Payment[];
   student: StudentDetails;
-  cashierProfile: CashierProfile | null;
+  cashierProfile?: CashierProfile | null;
   isReadOnly?: boolean;
 }
 
-export function PaymentHistory({ payments, student, cashierProfile, isReadOnly = false }: PaymentHistoryProps) {
+export function PaymentHistory({ payments, student, cashierProfile = null, isReadOnly = false }: PaymentHistoryProps) {
   const handlePrint = (payment: Payment) => {
     const receiptHtml = generateReceiptHtml(student, payment, cashierProfile?.name || null);
     const printWindow = window.open('', '_blank', 'height=800,width=800');
