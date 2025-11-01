@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import Papa from "papaparse";
+import { v4 as uuidv4 } from "uuid";
 import { Download, Upload, Loader2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -21,14 +22,26 @@ export function BulkStudentUpload({ academicYears, studentTypes, onSuccess }: Bu
   const [isUploading, setIsUploading] = useState(false);
 
   const handleDownloadSample = () => {
-    const headers = ["roll_number", "name", "class", "section", "email", "phone", "student_type", "academic_year", "studying_year", "caste"];
-    const sampleData = ["101", "John Doe", "BSc", "A", "john.doe@example.com", "1234567890", "Day Scholar", "2024-2025", "1st Year", "General"];
+    const headers = [
+      "roll_number", "name", "class", "section", "email", "phone", 
+      "student_type", "academic_year", "studying_year", "caste",
+      "first_year_tuition_fee", "first_year_jvd_fee", "first_year_concession",
+      "second_year_tuition_fee", "second_year_jvd_fee", "second_year_concession",
+      "third_year_tuition_fee", "third_year_jvd_fee", "third_year_concession"
+    ];
+    const sampleData = [
+      "101", "John Doe", "BSc", "A", "john.doe@example.com", "1234567890", 
+      "Day Scholar", "2024-2025", "1st Year", "General",
+      "50000", "20000", "5000",
+      "52000", "22000", "0",
+      "55000", "25000", "0"
+    ];
     const csv = [headers.join(','), sampleData.join(',')].join('\n');
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", "sample_students.csv");
+    link.setAttribute("download", "sample_students_with_fees.csv");
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -76,6 +89,26 @@ export function BulkStudentUpload({ academicYears, studentTypes, onSuccess }: Bu
             return;
           }
 
+          const fee_details: { [key: string]: any[] } = {};
+          const feeYears = [
+            { year: '1st Year', tuition: 'first_year_tuition_fee', jvd: 'first_year_jvd_fee', concession: 'first_year_concession' },
+            { year: '2nd Year', tuition: 'second_year_tuition_fee', jvd: 'second_year_jvd_fee', concession: 'second_year_concession' },
+            { year: '3rd Year', tuition: 'third_year_tuition_fee', jvd: 'third_year_jvd_fee', concession: 'third_year_concession' },
+          ];
+
+          feeYears.forEach(feeYear => {
+            const tuitionFee = parseFloat(row[feeYear.tuition]) || 0;
+            const jvdFee = parseFloat(row[feeYear.jvd]) || 0;
+            const concession = parseFloat(row[feeYear.concession]) || 0;
+
+            if (tuitionFee > 0 || jvdFee > 0 || concession > 0) {
+              fee_details[feeYear.year] = [
+                { id: uuidv4(), name: 'Tuition Fee', amount: tuitionFee, concession: concession },
+                { id: uuidv4(), name: 'JVD Fee', amount: jvdFee, concession: 0 },
+              ];
+            }
+          });
+
           studentsToInsert.push({
             roll_number: row.roll_number.trim(),
             name: row.name.trim(),
@@ -87,7 +120,7 @@ export function BulkStudentUpload({ academicYears, studentTypes, onSuccess }: Bu
             academic_year_id,
             studying_year: row.studying_year.trim(),
             caste: row.caste?.trim() || null,
-            fee_details: {}, // Default empty fee details
+            fee_details: fee_details,
           });
         });
 
@@ -154,7 +187,7 @@ export function BulkStudentUpload({ academicYears, studentTypes, onSuccess }: Bu
         </div>
         <div className="text-sm text-muted-foreground">
           <p><strong>Required Columns:</strong> roll_number, name, class, section, student_type, academic_year, studying_year</p>
-          <p><strong>Optional Columns:</strong> email, phone, caste</p>
+          <p><strong>Optional Columns:</strong> email, phone, caste, and fee columns (e.g., first_year_tuition_fee)</p>
         </div>
       </CardContent>
     </Card>
