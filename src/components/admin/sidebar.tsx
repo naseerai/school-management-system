@@ -91,9 +91,11 @@ export function Sidebar({ userRole, isExpanded }: { userRole: 'admin' | 'cashier
           </nav>
         </div>
         <div className="mt-auto p-2">
-          <p className="text-center text-xs text-muted-foreground">
-            {isExpanded ? "Sanju Animations" : "SA"}
-          </p>
+          <p className="text-center text-xs text-muted-foreground mt-2">
+  {isExpanded
+    ? `© ${new Date().getFullYear()} Sanju Animations. All rights reserved.`
+    : "SA"}
+</p>
         </div>
       </div>
     </aside>
