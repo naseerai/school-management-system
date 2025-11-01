@@ -7,9 +7,9 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
     year: 'numeric'
   });
 
-  const createCopy = (copyType: "College Receipt" | "Student Receipt") => {
-    const title = copyType === 'College Receipt' ? 'College Receipt' : 'Student Receipt';
-    const cashierRow = copyType === 'College Receipt' && cashierName
+  const createCopy = (copyType: "College Copy" | "Student Copy") => {
+    const title = copyType;
+    const cashierRow = copyType === 'College Copy' && cashierName
       ? `<tr><td colspan="2" class="meta-info"><strong>Cashier Name:</strong> ${cashierName}</td></tr>`
       : '';
 
@@ -119,8 +119,8 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
     </head>
     <body>
       <div class="print-container">
-        <div class="receipt-wrapper">${createCopy("Student Receipt")}</div>
-        <div class="receipt-wrapper">${createCopy("College Receipt")}</div>
+        <div class="receipt-wrapper">${createCopy("College Copy")}</div>
+        <div class="receipt-wrapper">${createCopy("Student Copy")}</div>
       </div>
     </body>
     </html>
