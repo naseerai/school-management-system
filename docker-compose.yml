@@ -1,0 +1,13 @@
+services:
+  next-template:
+    build:
+      context: .
+      args:
+        SUPABASE_URL: ${SUPABASE_URL}
+        SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    ports:
+      - "3000:3000"
+    restart: always
