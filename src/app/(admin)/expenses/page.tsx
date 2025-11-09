@@ -108,7 +108,7 @@ export default function ExpensesPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [selectedCashier, setSelectedCashier] = useState("");
+  const [selectedCashier, setSelectedCashier] = useState("all");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportDateRange, setExportDateRange] = useState<{ start: string, end: string } | null>(null);
 
@@ -139,7 +139,7 @@ export default function ExpensesPage() {
       .order("expense_date", { ascending: false })
       .range(from, to);
     
-    if (selectedCashier) {
+    if (selectedCashier && selectedCashier !== 'all') {
       expensesQuery = expensesQuery.eq('cashier_id', selectedCashier);
     }
 
@@ -235,7 +235,7 @@ export default function ExpensesPage() {
       .gte('expense_date', start)
       .lte('expense_date', end);
 
-    if (selectedCashier) {
+    if (selectedCashier && selectedCashier !== 'all') {
       paymentsQuery = paymentsQuery.eq('cashier_id', selectedCashier);
       expensesQuery = expensesQuery.eq('cashier_id', selectedCashier);
     }
@@ -393,7 +393,7 @@ export default function ExpensesPage() {
               <Select value={selectedCashier} onValueChange={setSelectedCashier}>
                 <SelectTrigger><SelectValue placeholder="All Cashiers" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Cashiers</SelectItem>
+                  <SelectItem value="all">All Cashiers</SelectItem>
                   {cashiers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
