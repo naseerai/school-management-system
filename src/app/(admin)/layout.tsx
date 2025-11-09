@@ -16,6 +16,7 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [userRole, setUserRole] = useState<'admin' | 'cashier' | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [cashierProfile, setCashierProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
 
@@ -27,17 +28,18 @@ export default function AdminLayout({
         return;
       }
 
-      const { data: cashierProfile } = await supabase
+      const { data: cashierProfileData } = await supabase
         .from('cashiers')
-        .select('password_change_required, name')
+        .select('password_change_required, name, has_expenses_permission')
         .eq('user_id', session.user.id)
         .single();
 
       let role: 'admin' | 'cashier' = 'admin';
-      if (cashierProfile) {
+      if (cashierProfileData) {
         role = 'cashier';
-        setUserName(cashierProfile.name);
-        if (cashierProfile.password_change_required && pathname !== '/change-password') {
+        setUserName(cashierProfileData.name);
+        setCashierProfile(cashierProfileData);
+        if (cashierProfileData.password_change_required && pathname !== '/change-password') {
           router.push('/change-password');
           return;
         }
@@ -69,12 +71,18 @@ export default function AdminLayout({
         '/invoices', 
         '/cashiers', 
         '/departments', 
-        '/expenses', 
         '/academic-years',
         '/activity-logs',
         '/settings'
       ];
       const cashierOnlyPages: string[] = [];
+
+      if (userRole === 'cashier') {
+        if (pathname.startsWith('/expenses') && !cashierProfile?.has_expenses_permission) {
+          router.push('/fee-collection');
+          return;
+        }
+      }
 
       const currentPageIsAdminOnly = adminOnlyPages.some(p => pathname.startsWith(p));
       const currentPageIsCashierOnly = cashierOnlyPages.some(p => pathname.startsWith(p));
@@ -85,7 +93,7 @@ export default function AdminLayout({
         router.push('/dashboard');
       }
     }
-  }, [userRole, pathname, router]);
+  }, [userRole, pathname, router, cashierProfile]);
 
   if (isLoading || !userRole) {
     return (
@@ -99,12 +107,12 @@ export default function AdminLayout({
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <Sidebar userRole={userRole} isExpanded={isSidebarExpanded} />
+      <Sidebar userRole={userRole} isExpanded={isSidebarExpanded} cashierProfile={cashierProfile} />
       <div className={cn(
         "flex flex-col min-h-screen transition-all duration-300 print:p-0",
         isSidebarExpanded ? "sm:pl-56 print:!pl-0" : "sm:pl-14 print:!pl-0"
       )}>
-        <Header userName={userName} userRole={userRole} isSidebarExpanded={isSidebarExpanded} onToggleSidebar={() => setIsSidebarExpanded(prev => !prev)} />
+        <Header userName={userName} userRole={userRole} isSidebarExpanded={isSidebarExpanded} onToggleSidebar={() => setIsSidebarExpanded(prev => !prev)} cashierProfile={cashierProfile} />
         <main className="flex-1 grid items-start gap-4 p-4 sm:px-6 sm:py-4 md:gap-8">
           {children}
         </main>

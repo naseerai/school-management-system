@@ -70,6 +70,7 @@ type Cashier = {
   email: string | null;
   phone: string | null;
   has_discount_permission: boolean;
+  has_expenses_permission: boolean;
   created_at: string;
 };
 
@@ -78,6 +79,7 @@ const formSchema = z.object({
   email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
   has_discount_permission: z.boolean().default(false),
+  has_expenses_permission: z.boolean().default(false),
   password: z.string().optional(),
 }).refine(data => {
     return true;
@@ -99,7 +101,7 @@ export default function CashiersPage() {
 
   const form = useForm<z.input<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", email: "", phone: "", has_discount_permission: false, password: "" },
+    defaultValues: { name: "", email: "", phone: "", has_discount_permission: false, has_expenses_permission: false, password: "" },
   });
 
   const fetchCashiers = async () => {
@@ -135,6 +137,7 @@ export default function CashiersPage() {
           name: values.name,
           phone: values.phone,
           has_discount_permission: values.has_discount_permission,
+          has_expenses_permission: values.has_expenses_permission,
         })
         .eq("id", editingCashier.id);
       
@@ -199,6 +202,7 @@ export default function CashiersPage() {
       email: cashier.email ?? "",
       phone: cashier.phone ?? "",
       has_discount_permission: cashier.has_discount_permission,
+      has_expenses_permission: cashier.has_expenses_permission,
       password: "",
     });
     setDialogOpen(true);
@@ -218,7 +222,7 @@ export default function CashiersPage() {
   useEffect(() => {
     if (!dialogOpen) {
       setEditingCashier(null);
-      form.reset({ name: "", email: "", phone: "", has_discount_permission: false, password: "" });
+      form.reset({ name: "", email: "", phone: "", has_discount_permission: false, has_expenses_permission: false, password: "" });
     }
   }, [dialogOpen]);
 
@@ -270,6 +274,12 @@ export default function CashiersPage() {
                         <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                       </FormItem>
                     )} />
+                    <FormField control={form.control} name="has_expenses_permission" render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                        <div className="space-y-0.5"><FormLabel>Expenses Permission</FormLabel></div>
+                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                      </FormItem>
+                    )} />
                     <DialogFooter>
                       <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                       <Button type="submit" disabled={isSubmitting}>
@@ -290,12 +300,13 @@ export default function CashiersPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Discount Permission</TableHead>
+                <TableHead>Expenses Permission</TableHead>
                 <TableHead><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={4} className="text-center">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center">Loading...</TableCell></TableRow>
               ) : cashiers.length > 0 ? (
                 cashiers.map((cashier) => (
                   <TableRow key={cashier.id}>
@@ -303,6 +314,9 @@ export default function CashiersPage() {
                     <TableCell>{cashier.email}</TableCell>
                     <TableCell>
                       {cashier.has_discount_permission ? <Badge>Yes</Badge> : <Badge variant="secondary">No</Badge>}
+                    </TableCell>
+                    <TableCell>
+                      {cashier.has_expenses_permission ? <Badge>Yes</Badge> : <Badge variant="secondary">No</Badge>}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -317,7 +331,7 @@ export default function CashiersPage() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={4} className="text-center">No cashiers found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center">No cashiers found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

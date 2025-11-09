@@ -29,15 +29,23 @@ const allNavItems = [
   { href: "/invoices", icon: FileText, label: "Invoices", roles: ['admin'] },
   { href: "/cashiers", icon: UserCircle, label: "Cashiers", roles: ['admin'] },
   { href: "/departments", icon: Building, label: "Departments", roles: ['admin'] },
-  { href: "/expenses", icon: TrendingUp, label: "Expenses", roles: ['admin'] },
+  { href: "/expenses", icon: TrendingUp, label: "Expenses", roles: ['admin', 'cashier'] },
   { href: "/academic-years", icon: Calendar, label: "Academic Years", roles: ['admin'] },
   { href: "/activity-logs", icon: History, label: "Activity Logs", roles: ['admin'] },
   { href: "/fee-collection", icon: Receipt, label: "Fee Collection", roles: ['admin', 'cashier'] },
 ];
 
-export function Sidebar({ userRole, isExpanded }: { userRole: 'admin' | 'cashier', isExpanded: boolean }) {
+export function Sidebar({ userRole, isExpanded, cashierProfile }: { userRole: 'admin' | 'cashier', isExpanded: boolean, cashierProfile: any }) {
   const pathname = usePathname();
-  const navItems = allNavItems.filter(item => item.roles.includes(userRole));
+  
+  const navItems = allNavItems.filter(item => {
+    if (!item.roles.includes(userRole)) return false;
+    if (userRole === 'cashier' && item.href === '/expenses') {
+      return cashierProfile?.has_expenses_permission;
+    }
+    return true;
+  });
+
   const portalTitle = userRole === 'admin' ? 'Admin Portal' : 'Cashier Portal';
   const homeLink = userRole === 'admin' ? '/dashboard' : '/fee-collection';
 

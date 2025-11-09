@@ -26,4 +26,5 @@ export type CashierProfile = {
   id: string;
   name: string;
   has_discount_permission: boolean;
+  has_expenses_permission: boolean;
 };

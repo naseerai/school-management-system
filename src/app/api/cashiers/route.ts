@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: Request) {
   try {
-    const { name, email, phone, has_discount_permission, password } = await request.json();
+    const { name, email, phone, has_discount_permission, has_expenses_permission, password } = await request.json();
 
     if (!password) {
       return NextResponse.json({ error: "Password is required." }, { status: 400 });
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
         email,
         phone,
         has_discount_permission,
+        has_expenses_permission,
         password_change_required: true,
       });
 
