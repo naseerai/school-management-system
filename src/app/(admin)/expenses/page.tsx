@@ -7,6 +7,8 @@ import * as z from "zod";
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -70,6 +72,13 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { Label } from "@/components/ui/label";
+
+// Extend the jsPDF interface for the autoTable plugin
+declare module "jspdf" {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 type Department = { id: string; name: string };
 type Cashier = { id: string; name: string };
@@ -216,13 +225,6 @@ export default function ExpensesPage() {
   const handleDownload = async (format: 'csv' | 'pdf') => {
     if (!exportDateRange) return;
     const { start, end } = exportDateRange;
-
-    if (format === 'pdf') {
-      toast.info("PDF export is coming soon!");
-      setExportDialogOpen(false);
-      return;
-    }
-
     const toastId = toast.loading("Generating report...");
 
     let paymentsQuery = supabase.from("payments")
@@ -256,58 +258,117 @@ export default function ExpensesPage() {
       return;
     }
 
-    let totalIncome = 0;
-    let totalExpense = 0;
+    let totalIncome = paymentsData.reduce((sum, p) => sum + p.amount, 0);
+    let totalExpense = expensesData.reduce((sum, e) => sum + e.amount, 0);
 
-    const reportData = [];
-    reportData.push([`Report from ${start} to ${end}`]);
-    reportData.push([]);
+    if (format === 'pdf') {
+      const doc = new jsPDF();
+      doc.text(`Report from ${start} to ${end}`, 14, 15);
+      
+      if (paymentsData.length > 0) {
+        doc.autoTable({
+          startY: 22,
+          head: [['Payments (Income)']],
+          theme: 'plain',
+          styles: { fontStyle: 'bold' }
+        });
+        doc.autoTable({
+          head: [["Date", "Student", "Description", "Mode", "Cashier", "Amount"]],
+          body: paymentsData.map((p: any) => [
+            new Date(p.created_at).toLocaleDateString(),
+            `${p.students?.name || 'N/A'} (${p.students?.roll_number || 'N/A'})`,
+            p.fee_type,
+            p.payment_method,
+            p.cashiers?.name || 'Admin/System',
+            p.amount.toFixed(2),
+          ]),
+          foot: [[{ content: 'Total Income:', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } }, { content: totalIncome.toFixed(2), styles: { fontStyle: 'bold' } }]],
+          showFoot: 'last_page',
+          theme: 'striped',
+        });
+      }
 
-    reportData.push(["Payments (Income)"]);
-    reportData.push(["Date", "Student Name", "Roll Number", "Description", "Payment Mode", "Cashier", "Amount"]);
-    paymentsData.forEach((p: any) => {
-      totalIncome += p.amount;
-      reportData.push([
-        new Date(p.created_at).toLocaleDateString(),
-        p.students?.name || 'N/A',
-        p.students?.roll_number || 'N/A',
-        p.fee_type,
-        p.payment_method,
-        p.cashiers?.name || 'Admin/System',
-        p.amount.toFixed(2),
-      ]);
-    });
-    reportData.push(["", "", "", "", "", "Total Income:", totalIncome.toFixed(2)]);
-    reportData.push([]);
+      if (expensesData.length > 0) {
+        doc.autoTable({
+          startY: (doc as any).lastAutoTable.finalY + 10,
+          head: [['Expenses']],
+          theme: 'plain',
+          styles: { fontStyle: 'bold' }
+        });
+        doc.autoTable({
+          head: [["Date", "Department", "Description", "Cashier", "Amount"]],
+          body: expensesData.map((e: any) => [
+            new Date(e.expense_date).toLocaleDateString(),
+            e.departments?.name || "N/A",
+            e.description || "",
+            e.cashiers?.name || 'Admin/System',
+            e.amount.toFixed(2),
+          ]),
+          foot: [[{ content: 'Total Expense:', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, { content: totalExpense.toFixed(2), styles: { fontStyle: 'bold' } }]],
+          showFoot: 'last_page',
+          theme: 'striped',
+        });
+      }
 
-    reportData.push(["Expenses"]);
-    reportData.push(["Date", "Department", "Description", "Cashier", "Amount"]);
-    expensesData.forEach((e: any) => {
-      totalExpense += e.amount;
-      reportData.push([
-        new Date(e.expense_date).toLocaleDateString(),
-        e.departments?.name || "N/A",
-        e.description || "",
-        e.cashiers?.name || 'Admin/System',
-        e.amount.toFixed(2),
-      ]);
-    });
-    reportData.push(["", "", "", "Total Expense:", totalExpense.toFixed(2)]);
-    reportData.push([]);
+      doc.autoTable({
+        startY: (doc as any).lastAutoTable.finalY + 10,
+        head: [['Summary']],
+        body: [[{ content: 'Net Balance:', styles: { fontStyle: 'bold' } }, { content: (totalIncome - totalExpense).toFixed(2), styles: { fontStyle: 'bold' } }]],
+        theme: 'grid',
+      });
 
-    reportData.push(["Summary"]);
-    reportData.push(["Net Balance:", (totalIncome - totalExpense).toFixed(2)]);
+      doc.save(`report_${start}_to_${end}.pdf`);
 
-    const csv = Papa.unparse(reportData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `report_${start}_to_${end}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    } else { // CSV export
+      const reportData = [];
+      reportData.push([`Report from ${start} to ${end}`]);
+      reportData.push([]);
+
+      reportData.push(["Payments (Income)"]);
+      reportData.push(["Date", "Student Name", "Roll Number", "Description", "Payment Mode", "Cashier", "Amount"]);
+      paymentsData.forEach((p: any) => {
+        reportData.push([
+          new Date(p.created_at).toLocaleDateString(),
+          p.students?.name || 'N/A',
+          p.students?.roll_number || 'N/A',
+          p.fee_type,
+          p.payment_method,
+          p.cashiers?.name || 'Admin/System',
+          p.amount.toFixed(2),
+        ]);
+      });
+      reportData.push(["", "", "", "", "", "Total Income:", totalIncome.toFixed(2)]);
+      reportData.push([]);
+
+      reportData.push(["Expenses"]);
+      reportData.push(["Date", "Department", "Description", "Cashier", "Amount"]);
+      expensesData.forEach((e: any) => {
+        reportData.push([
+          new Date(e.expense_date).toLocaleDateString(),
+          e.departments?.name || "N/A",
+          e.description || "",
+          e.cashiers?.name || 'Admin/System',
+          e.amount.toFixed(2),
+        ]);
+      });
+      reportData.push(["", "", "", "Total Expense:", totalExpense.toFixed(2)]);
+      reportData.push([]);
+
+      reportData.push(["Summary"]);
+      reportData.push(["Net Balance:", (totalIncome - totalExpense).toFixed(2)]);
+
+      const csv = Papa.unparse(reportData);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `report_${start}_to_${end}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
     toast.success("Report downloaded successfully.", { id: toastId });
     setExportDialogOpen(false);
   };
