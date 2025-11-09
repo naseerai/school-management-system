@@ -7,13 +7,16 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
     year: 'numeric'
   });
 
-  // Using the first 8 characters of the payment UUID for a shorter, unique receipt number.
   const receiptNo = `R-${payment.id.substring(0, 8).toUpperCase()}`;
+
+  const paymentDetailsRow = payment.payment_method === 'upi' && payment.utr_number
+    ? `<strong>Payment Mode:</strong> UPI | <strong>UTR:</strong> ${payment.utr_number}`
+    : `<strong>Payment Mode:</strong> Cash`;
 
   const createCopy = (copyType: "College Copy" | "Student Copy") => {
     const title = copyType;
     const cashierRow = copyType === 'College Copy' && cashierName
-      ? `<tr><td colspan="2" class="meta-info"><strong>Cashier Name:</strong> ${cashierName}</td></tr>`
+      ? `<tr><td colspan="4" class="meta-info"><strong>Cashier Name:</strong> ${cashierName}</td></tr>`
       : '';
 
     return `
@@ -53,6 +56,9 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
             <tr>
               <td colspan="2"><strong>Fee Type/Name:</strong> ${payment.fee_type}</td>
               <td colspan="2" class="text-right"><strong>Amount</strong><br/>Rs.${payment.amount.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td colspan="4">${paymentDetailsRow}</td>
             </tr>
           </table>
           <div class="total-paid">

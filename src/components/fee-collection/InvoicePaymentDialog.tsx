@@ -19,6 +19,15 @@ const invoicePaymentSchema = z.object({
   amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
   payment_method: z.enum(["cash", "upi"]),
   notes: z.string().optional(),
+  utr_number: z.string().optional(),
+}).refine(data => {
+  if (data.payment_method === 'upi') {
+    return data.utr_number && data.utr_number.trim().length > 0;
+  }
+  return true;
+}, {
+  message: "UTR Number is required for UPI payments.",
+  path: ["utr_number"],
 });
 
 interface InvoicePaymentDialogProps {
@@ -37,6 +46,7 @@ export function InvoicePaymentDialog({ open, onOpenChange, invoice, studentRecor
     resolver: zodResolver(invoicePaymentSchema),
   });
 
+  const watchedPaymentMethod = form.watch("payment_method");
   const masterFeeDetails = studentRecords.length > 0 ? studentRecords[studentRecords.length - 1].fee_details || {} : {};
   const currentYearRecord = studentRecords.find(r => r.academic_years?.is_active);
 
@@ -47,7 +57,8 @@ export function InvoicePaymentDialog({ open, onOpenChange, invoice, studentRecor
         payment_year: currentYearRecord?.studying_year || '',
         amount: parseFloat(remainingBalance.toFixed(2)),
         payment_method: "cash",
-        notes: ""
+        notes: "",
+        utr_number: "",
       });
     }
   }, [invoice, currentYearRecord, form]);
@@ -69,6 +80,7 @@ export function InvoicePaymentDialog({ open, onOpenChange, invoice, studentRecor
       payment_method: values.payment_method,
       fee_type: `${values.payment_year} - ${feeName}`,
       notes: values.notes,
+      utr_number: values.payment_method === 'upi' ? values.utr_number : null,
     };
 
     const { data: newPayment, error: paymentError } = await supabase.from('payments').insert(paymentData).select().single();
@@ -129,6 +141,11 @@ export function InvoicePaymentDialog({ open, onOpenChange, invoice, studentRecor
                 </Select>
               <FormMessage /></FormItem>
             )} />
+            {watchedPaymentMethod === 'upi' && (
+              <FormField control={form.control} name="utr_number" render={({ field }) => (
+                <FormItem><FormLabel>UTR Number</FormLabel><FormControl><Input placeholder="Enter UTR number" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+            )}
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />

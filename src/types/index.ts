@@ -15,7 +15,14 @@ export type StudentDetails = {
 };
 
 export type Payment = {
-  id: string; student_id: string; amount: number; fee_type: string; payment_method: string; created_at: string; notes: string | null;
+  id: string; 
+  student_id: string; 
+  amount: number; 
+  fee_type: string; 
+  payment_method: string; 
+  created_at: string; 
+  notes: string | null;
+  utr_number: string | null;
 };
 
 export type Invoice = {

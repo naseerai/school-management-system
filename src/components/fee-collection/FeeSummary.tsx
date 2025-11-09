@@ -57,9 +57,20 @@ export function FeeSummary({ studentRecords, payments, cashierProfile, onSuccess
     const years = Object.keys(mergedFeeDetails).sort();
     const allFeeTypeNames = new Set<string>();
     Object.values(mergedFeeDetails).forEach(items => {
-        items.forEach(item => allFeeTypeNames.add(item.name));
+        (items || []).forEach(item => allFeeTypeNames.add(item.name));
     });
-    const feeTypes = Array.from(allFeeTypeNames).sort();
+
+    const customSort = (a: string, b: string) => {
+      const order = ['Tuition Fee', 'JVD Fee'];
+      const indexA = order.indexOf(a);
+      const indexB = order.indexOf(b);
+  
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return a.localeCompare(b);
+    };
+    const feeTypes = Array.from(allFeeTypeNames).sort(customSort);
 
     const paymentsByFeeType: { [type: string]: number } = {};
     payments.forEach(p => {

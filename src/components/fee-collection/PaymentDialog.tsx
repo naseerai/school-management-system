@@ -20,6 +20,15 @@ const paymentSchema = z.object({
   amount: z.coerce.number().min(1, "Amount must be greater than 0"),
   payment_method: z.enum(["cash", "upi"]),
   notes: z.string().optional(),
+  utr_number: z.string().optional(),
+}).refine(data => {
+  if (data.payment_method === 'upi') {
+    return data.utr_number && data.utr_number.trim().length > 0;
+  }
+  return true;
+}, {
+  message: "UTR Number is required for UPI payments.",
+  path: ["utr_number"],
 });
 
 interface PaymentDialogProps {
@@ -37,9 +46,10 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
   const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<z.infer<typeof paymentSchema>>({
     resolver: zodResolver(paymentSchema),
-    defaultValues: { amount: 0, payment_method: "cash", notes: "", payment_year: "", fee_item_name: "" },
+    defaultValues: { amount: 0, payment_method: "cash", notes: "", payment_year: "", fee_item_name: "", utr_number: "" },
   });
   const watchedPaymentYear = form.watch("payment_year");
+  const watchedPaymentMethod = form.watch("payment_method");
   const masterFeeDetails = studentRecords.length > 0 ? studentRecords[0].fee_details || {} : {};
 
   const handleFeeItemChange = (feeItemName: string, yearOverride?: string) => {
@@ -75,6 +85,7 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
         notes: "",
         payment_year: initialState.payment_year,
         fee_item_name: initialState.fee_item_name,
+        utr_number: "",
       });
 
       if (initialState.payment_year && initialState.payment_year !== 'Other' && initialState.fee_item_name) {
@@ -115,6 +126,7 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
         fee_type: feeTypeForDb,
         student_id: studentRecordForPayment.id,
         cashier_id: cashierProfile?.id || null,
+        utr_number: values.payment_method === 'upi' ? values.utr_number : null,
     };
 
     const { data: newPayment, error } = await supabase.from("payments").insert([paymentData]).select().single();
@@ -191,6 +203,11 @@ export function PaymentDialog({ open, onOpenChange, studentRecords, payments, ca
                 </Select>
               <FormMessage /></FormItem>
             )} />
+            {watchedPaymentMethod === 'upi' && (
+              <FormField control={form.control} name="utr_number" render={({ field }) => (
+                <FormItem><FormLabel>UTR Number</FormLabel><FormControl><Input placeholder="Enter UTR number" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+            )}
             <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
