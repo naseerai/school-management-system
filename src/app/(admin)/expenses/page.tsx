@@ -71,6 +71,7 @@ import { DataTablePagination } from "@/components/data-table-pagination";
 import { Label } from "@/components/ui/label";
 
 type Department = { id: string; name: string };
+type Cashier = { id: string; name: string };
 type Expense = {
   id: string;
   expense_date: string;
@@ -78,6 +79,7 @@ type Expense = {
   description: string | null;
   department_id: string | null;
   departments: Department | null;
+  cashiers: Cashier | null;
 };
 
 const formSchema = z.object({
@@ -92,6 +94,8 @@ const PAGE_SIZE = 10;
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [cashiers, setCashiers] = useState<Cashier[]>([]);
+  const [cashierProfile, setCashierProfile] = useState<{ id: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -103,20 +107,45 @@ export default function ExpensesPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [selectedCashier, setSelectedCashier] = useState("");
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportDateRange, setExportDateRange] = useState<{ start: string, end: string } | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { expense_date: new Date().toISOString().split('T')[0], amount: 0 },
   });
 
+  useEffect(() => {
+    const getProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase.from('cashiers').select('id').eq('user_id', user.id).single();
+        setCashierProfile(data);
+      }
+    };
+    getProfile();
+  }, []);
+
   const fetchData = async () => {
     setIsLoading(true);
     const from = (currentPage - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    const [expensesRes, deptsRes] = await Promise.all([
-      supabase.from("expenses").select("*, departments(id, name)", { count: 'exact' }).range(from, to),
+    let expensesQuery = supabase
+      .from("expenses")
+      .select("*, departments(id, name), cashiers(id, name)", { count: 'exact' })
+      .order("expense_date", { ascending: false })
+      .range(from, to);
+    
+    if (selectedCashier) {
+      expensesQuery = expensesQuery.eq('cashier_id', selectedCashier);
+    }
+
+    const [expensesRes, deptsRes, cashiersRes] = await Promise.all([
+      expensesQuery,
       supabase.from("departments").select("id, name"),
+      supabase.from("cashiers").select("id, name"),
     ]);
 
     if (expensesRes.error) toast.error("Failed to fetch expenses.");
@@ -127,19 +156,26 @@ export default function ExpensesPage() {
 
     if (deptsRes.error) toast.error("Failed to fetch departments.");
     else setDepartments(deptsRes.data || []);
+
+    if (cashiersRes.error) toast.error("Failed to fetch cashiers.");
+    else setCashiers(cashiersRes.data || []);
     
     setIsLoading(false);
   };
 
   useEffect(() => {
     fetchData();
-  }, [currentPage]);
+  }, [currentPage, selectedCashier]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
+    const dataToSubmit = {
+      ...values,
+      cashier_id: cashierProfile?.id || null,
+    };
     const query = editingExpense
-      ? supabase.from("expenses").update(values).eq("id", editingExpense.id)
-      : supabase.from("expenses").insert([values]);
+      ? supabase.from("expenses").update(dataToSubmit).eq("id", editingExpense.id)
+      : supabase.from("expenses").insert([dataToSubmit]);
 
     const { error } = await query;
 
@@ -176,19 +212,34 @@ export default function ExpensesPage() {
     setDialogOpen(true);
   };
 
-  const handleDownload = async (start: string, end: string) => {
+  const handleDownload = async (format: 'csv' | 'pdf') => {
+    if (!exportDateRange) return;
+    const { start, end } = exportDateRange;
+
+    if (format === 'pdf') {
+      toast.info("PDF export is coming soon!");
+      setExportDialogOpen(false);
+      return;
+    }
+
     const toastId = toast.loading("Generating report...");
 
-    const [paymentsRes, expensesRes] = await Promise.all([
-      supabase.from("payments")
-        .select("created_at, amount, fee_type, notes, students(name, roll_number)")
-        .gte('created_at', new Date(start).toISOString())
-        .lte('created_at', new Date(end + 'T23:59:59Z').toISOString()),
-      supabase.from("expenses")
-        .select("expense_date, amount, description, departments(name)")
-        .gte('expense_date', start)
-        .lte('expense_date', end)
-    ]);
+    let paymentsQuery = supabase.from("payments")
+      .select("created_at, amount, fee_type, notes, payment_method, students(name, roll_number), cashiers(name)")
+      .gte('created_at', new Date(start).toISOString())
+      .lte('created_at', new Date(end + 'T23:59:59Z').toISOString());
+
+    let expensesQuery = supabase.from("expenses")
+      .select("expense_date, amount, description, departments(name), cashiers(name)")
+      .gte('expense_date', start)
+      .lte('expense_date', end);
+
+    if (selectedCashier) {
+      paymentsQuery = paymentsQuery.eq('cashier_id', selectedCashier);
+      expensesQuery = expensesQuery.eq('cashier_id', selectedCashier);
+    }
+
+    const [paymentsRes, expensesRes] = await Promise.all([paymentsQuery, expensesQuery]);
 
     if (paymentsRes.error || expensesRes.error) {
       toast.error("Failed to fetch report data.", { id: toastId });
@@ -200,6 +251,7 @@ export default function ExpensesPage() {
 
     if (paymentsData.length === 0 && expensesData.length === 0) {
       toast.info("No payments or expenses recorded in the selected date range.", { id: toastId });
+      setExportDialogOpen(false);
       return;
     }
 
@@ -211,7 +263,7 @@ export default function ExpensesPage() {
     reportData.push([]);
 
     reportData.push(["Payments (Income)"]);
-    reportData.push(["Date", "Student Name", "Roll Number", "Description", "Amount"]);
+    reportData.push(["Date", "Student Name", "Roll Number", "Description", "Payment Mode", "Cashier", "Amount"]);
     paymentsData.forEach((p: any) => {
       totalIncome += p.amount;
       reportData.push([
@@ -219,24 +271,27 @@ export default function ExpensesPage() {
         p.students?.name || 'N/A',
         p.students?.roll_number || 'N/A',
         p.fee_type,
+        p.payment_method,
+        p.cashiers?.name || 'Admin/System',
         p.amount.toFixed(2),
       ]);
     });
-    reportData.push(["", "", "", "Total Income:", totalIncome.toFixed(2)]);
+    reportData.push(["", "", "", "", "", "Total Income:", totalIncome.toFixed(2)]);
     reportData.push([]);
 
     reportData.push(["Expenses"]);
-    reportData.push(["Date", "Department", "Description", "Amount"]);
+    reportData.push(["Date", "Department", "Description", "Cashier", "Amount"]);
     expensesData.forEach((e: any) => {
       totalExpense += e.amount;
       reportData.push([
         new Date(e.expense_date).toLocaleDateString(),
         e.departments?.name || "N/A",
         e.description || "",
+        e.cashiers?.name || 'Admin/System',
         e.amount.toFixed(2),
       ]);
     });
-    reportData.push(["", "", "Total Expense:", totalExpense.toFixed(2)]);
+    reportData.push(["", "", "", "Total Expense:", totalExpense.toFixed(2)]);
     reportData.push([]);
 
     reportData.push(["Summary"]);
@@ -253,19 +308,22 @@ export default function ExpensesPage() {
     link.click();
     document.body.removeChild(link);
     toast.success("Report downloaded successfully.", { id: toastId });
+    setExportDialogOpen(false);
   };
 
-  const handleDateRangeDownload = () => {
-    if (!startDate || !endDate) {
+  const openExportDialog = (start: string, end: string) => {
+    if (!start || !end) {
       toast.error("Please select both a start and end date for the report.");
       return;
     }
-    handleDownload(startDate, endDate);
+    setExportDateRange({ start, end });
+    setExportDialogOpen(true);
   };
 
+  const handleDateRangeDownload = () => openExportDialog(startDate, endDate);
   const handleTodayDownload = () => {
     const today = new Date().toISOString().split('T')[0];
-    handleDownload(today, today);
+    openExportDialog(today, today);
   };
 
   useEffect(() => {
@@ -287,22 +345,6 @@ export default function ExpensesPage() {
               <CardDescription>Track expenses and generate financial reports.</CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="start-date">From</Label>
-                <Input id="start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-auto" />
-              </div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="end-date">To</Label>
-                <Input id="end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-auto" />
-              </div>
-              <Button variant="outline" size="sm" className="gap-1" onClick={handleDateRangeDownload}>
-                <Download className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only">Download Report</span>
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1" onClick={handleTodayDownload}>
-                <Download className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only">Today's Report</span>
-              </Button>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="gap-1">
@@ -344,6 +386,36 @@ export default function ExpensesPage() {
               </Dialog>
             </div>
           </div>
+          <div className="flex flex-wrap items-end gap-4 pt-4">
+            <div className="flex-grow">
+              <Label>Cashier</Label>
+              <Select value={selectedCashier} onValueChange={setSelectedCashier}>
+                <SelectTrigger><SelectValue placeholder="All Cashiers" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Cashiers</SelectItem>
+                  {cashiers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-grow">
+              <Label htmlFor="start-date">From</Label>
+              <Input id="start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div className="flex-grow">
+              <Label htmlFor="end-date">To</Label>
+              <Input id="end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="gap-1" onClick={handleDateRangeDownload}>
+                <Download className="h-3.5 w-3.5" />
+                <span>Download Report</span>
+              </Button>
+              <Button variant="outline" className="gap-1" onClick={handleTodayDownload}>
+                <Download className="h-3.5 w-3.5" />
+                <span>Today's Report</span>
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -351,6 +423,7 @@ export default function ExpensesPage() {
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Department</TableHead>
+                <TableHead>Cashier</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead><span className="sr-only">Actions</span></TableHead>
@@ -358,12 +431,13 @@ export default function ExpensesPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={5} className="text-center">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center">Loading...</TableCell></TableRow>
               ) : expenses.length > 0 ? (
                 expenses.map((exp) => (
                   <TableRow key={exp.id}>
                     <TableCell>{new Date(exp.expense_date).toLocaleDateString()}</TableCell>
                     <TableCell>{exp.departments?.name || 'N/A'}</TableCell>
+                    <TableCell>{exp.cashiers?.name || 'Admin/System'}</TableCell>
                     <TableCell>{exp.amount}</TableCell>
                     <TableCell>{exp.description}</TableCell>
                     <TableCell>
@@ -379,7 +453,7 @@ export default function ExpensesPage() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={5} className="text-center">No expenses found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center">No expenses found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -404,6 +478,18 @@ export default function ExpensesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Choose Export Format</DialogTitle>
+            <DialogDescription>Select the format for your report.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-center">
+            <Button onClick={() => handleDownload('csv')}>Download as CSV (Excel)</Button>
+            <Button onClick={() => handleDownload('pdf')} variant="secondary">Download as PDF</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
