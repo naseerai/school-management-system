@@ -24,7 +24,7 @@ export function useFeeCollection() {
       setSessionUser(user);
 
       if (user) {
-        const { data: profile } = await supabase.from('cashiers').select('id, name, has_discount_permission').eq('user_id', user.id).single();
+        const { data: profile } = await supabase.from('cashiers').select('id, name, has_discount_permission, has_expenses_permission').eq('user_id', user.id).single();
         setCashierProfile(profile);
         if (profile) {
           setUserRole('cashier');
