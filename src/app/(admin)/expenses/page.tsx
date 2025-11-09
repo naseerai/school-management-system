@@ -276,7 +276,7 @@ export default function ExpensesPage() {
             p.cashiers?.name || 'Admin/System',
             p.amount.toFixed(2),
           ]),
-          foot: [[{ content: 'Total Income:', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } }, { content: totalIncome.toFixed(2), styles: { fontStyle: 'bold' } }]],
+          foot: [[{ content: 'Total Income:', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } }, { content: totalIncome.toFixed(2), styles: { fontStyle: 'bold', halign: 'right' } }]],
           showFoot: 'last_page',
           theme: 'striped',
         });
@@ -299,7 +299,7 @@ export default function ExpensesPage() {
             e.cashiers?.name || 'Admin/System',
             e.amount.toFixed(2),
           ]),
-          foot: [[{ content: 'Total Expense:', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, { content: totalExpense.toFixed(2), styles: { fontStyle: 'bold' } }]],
+          foot: [[{ content: 'Total Expense:', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, { content: totalExpense.toFixed(2), styles: { fontStyle: 'bold', halign: 'right' } }]],
           showFoot: 'last_page',
           theme: 'striped',
         });
@@ -308,8 +308,10 @@ export default function ExpensesPage() {
 
       autoTable(doc, {
         startY: lastY + 10,
-        head: [['Summary']],
-        body: [[{ content: 'Net Balance:', styles: { fontStyle: 'bold' } }, { content: (totalIncome - totalExpense).toFixed(2), styles: { fontStyle: 'bold' } }]],
+        head: [[{ content: 'Summary', colSpan: 2, styles: { halign: 'center', fontStyle: 'bold' } }]],
+        body: [
+            ['Net Balance:', { content: (totalIncome - totalExpense).toFixed(2), styles: { halign: 'right' } }]
+        ],
         theme: 'grid',
       });
 
