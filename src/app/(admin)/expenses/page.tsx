@@ -8,7 +8,7 @@ import { PlusCircle, MoreHorizontal, Pencil, Trash2, Download, Loader2 } from "l
 import { toast } from "sonner";
 import Papa from "papaparse";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -72,13 +72,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { Label } from "@/components/ui/label";
-
-// Extend the jsPDF interface for the autoTable plugin
-declare module "jspdf" {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
 
 type Department = { id: string; name: string };
 type Cashier = { id: string; name: string };
@@ -267,13 +260,13 @@ export default function ExpensesPage() {
       let lastY = 15;
 
       if (paymentsData.length > 0) {
-        doc.autoTable({
+        autoTable(doc, {
           startY: lastY + 7,
           head: [['Payments (Income)']],
           theme: 'plain',
           styles: { fontStyle: 'bold' }
         });
-        doc.autoTable({
+        autoTable(doc, {
           head: [["Date", "Student", "Description", "Mode", "Cashier", "Amount"]],
           body: paymentsData.map((p: any) => [
             new Date(p.created_at).toLocaleDateString(),
@@ -291,13 +284,13 @@ export default function ExpensesPage() {
       }
 
       if (expensesData.length > 0) {
-        doc.autoTable({
+        autoTable(doc, {
           startY: lastY + 10,
           head: [['Expenses']],
           theme: 'plain',
           styles: { fontStyle: 'bold' }
         });
-        doc.autoTable({
+        autoTable(doc, {
           head: [["Date", "Department", "Description", "Cashier", "Amount"]],
           body: expensesData.map((e: any) => [
             new Date(e.expense_date).toLocaleDateString(),
@@ -313,7 +306,7 @@ export default function ExpensesPage() {
         lastY = (doc as any).lastAutoTable.finalY;
       }
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: lastY + 10,
         head: [['Summary']],
         body: [[{ content: 'Net Balance:', styles: { fontStyle: 'bold' } }, { content: (totalIncome - totalExpense).toFixed(2), styles: { fontStyle: 'bold' } }]],
