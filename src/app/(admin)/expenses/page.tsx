@@ -264,10 +264,11 @@ export default function ExpensesPage() {
     if (format === 'pdf') {
       const doc = new jsPDF();
       doc.text(`Report from ${start} to ${end}`, 14, 15);
-      
+      let lastY = 15;
+
       if (paymentsData.length > 0) {
         doc.autoTable({
-          startY: 22,
+          startY: lastY + 7,
           head: [['Payments (Income)']],
           theme: 'plain',
           styles: { fontStyle: 'bold' }
@@ -286,11 +287,12 @@ export default function ExpensesPage() {
           showFoot: 'last_page',
           theme: 'striped',
         });
+        lastY = (doc as any).lastAutoTable.finalY;
       }
 
       if (expensesData.length > 0) {
         doc.autoTable({
-          startY: (doc as any).lastAutoTable.finalY + 10,
+          startY: lastY + 10,
           head: [['Expenses']],
           theme: 'plain',
           styles: { fontStyle: 'bold' }
@@ -308,10 +310,11 @@ export default function ExpensesPage() {
           showFoot: 'last_page',
           theme: 'striped',
         });
+        lastY = (doc as any).lastAutoTable.finalY;
       }
 
       doc.autoTable({
-        startY: (doc as any).lastAutoTable.finalY + 10,
+        startY: lastY + 10,
         head: [['Summary']],
         body: [[{ content: 'Net Balance:', styles: { fontStyle: 'bold' } }, { content: (totalIncome - totalExpense).toFixed(2), styles: { fontStyle: 'bold' } }]],
         theme: 'grid',
