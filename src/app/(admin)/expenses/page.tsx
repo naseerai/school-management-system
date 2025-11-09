@@ -277,7 +277,7 @@ export default function ExpensesPage() {
             p.amount.toFixed(2),
           ]),
           foot: [[{ content: 'Total Income:', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } }, { content: totalIncome.toFixed(2), styles: { fontStyle: 'bold', halign: 'right' } }]],
-          showFoot: 'last_page',
+          showFoot: 'lastPage',
           theme: 'striped',
         });
         lastY = (doc as any).lastAutoTable.finalY;
@@ -300,7 +300,7 @@ export default function ExpensesPage() {
             e.amount.toFixed(2),
           ]),
           foot: [[{ content: 'Total Expense:', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, { content: totalExpense.toFixed(2), styles: { fontStyle: 'bold', halign: 'right' } }]],
-          showFoot: 'last_page',
+          showFoot: 'lastPage',
           theme: 'striped',
         });
         lastY = (doc as any).lastAutoTable.finalY;
