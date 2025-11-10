@@ -2,22 +2,42 @@ pipeline {
   agent any
 
   environment {
-    APP_NAME = "myapp"
+    PROJECT_DIR = "/root/projects/school-management-system"
+    REPO_URL = "https://github.com/naseerai/school-management-system.git"
+    APP_NAME = "school-management-system"
     IMAGE_TAG = "${APP_NAME}:${env.BUILD_NUMBER}"
     CONTAINER_NAME = "${APP_NAME}"
-    DEPLOY_SERVER = "3.109.132.145"        // <-- change to your main server IP
-    SSH_CRED_ID = "server1-ssh"            // <-- use your stored credential ID
+    DEPLOY_SERVER = "96.8.121.100"          // 🔁 Change to your target server IP
+    SSH_CRED_ID = "temp"              // 🔁 Your Jenkins SSH credential ID
   }
 
   triggers {
-    githubPush() // triggers pipeline on GitHub push
+    githubPush()  // 🚀 Auto-trigger when code pushed to GitHub
   }
 
   stages {
 
-    stage('Checkout') {
+    stage('Clone or Pull Repo') {
       steps {
-        checkout scm
+        script {
+          if (fileExists("${PROJECT_DIR}/.git")) {
+            echo "🔁 Repository exists — pulling latest changes..."
+            dir("${PROJECT_DIR}") {
+              sh '''
+                git fetch origin main
+                git reset --hard origin/main
+                git clean -fd
+              '''
+            }
+          } else {
+            echo "🆕 Repository not found — cloning..."
+            sh '''
+              mkdir -p /root/projects
+              cd /root/projects
+              git clone ${REPO_URL}
+            '''
+          }
+        }
       }
     }
 
@@ -25,8 +45,8 @@ pipeline {
       steps {
         sh '''
         if [ "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
-          docker stop ${CONTAINER_NAME}
-          docker rm ${CONTAINER_NAME}
+          echo "🧹 Removing old container..."
+          docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}
         fi
         '''
       }
@@ -37,6 +57,7 @@ pipeline {
         sh '''
         old_image=$(docker images -q ${APP_NAME})
         if [ -n "$old_image" ]; then
+          echo "🧹 Removing old image..."
           docker rmi -f $old_image || true
         fi
         '''
@@ -45,9 +66,12 @@ pipeline {
 
     stage('Build New Docker Image') {
       steps {
-        sh '''
-        docker build -t ${IMAGE_TAG} .
-        '''
+        dir("${PROJECT_DIR}") {
+          sh '''
+          echo "⚙️ Building new Docker image..."
+          docker build -t ${IMAGE_TAG} .
+          '''
+        }
       }
     }
 
@@ -55,10 +79,12 @@ pipeline {
       steps {
         sshagent (credentials: [env.SSH_CRED_ID]) {
           sh '''
-          # Copy new image to remote server (optional: use docker save/load or push to registry)
+          echo "🚀 Deploying to remote server ${DEPLOY_SERVER}..."
+
+          # Transfer image to remote server
           docker save ${IMAGE_TAG} | bzip2 | ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} 'bunzip2 | docker load'
 
-          # Stop and remove old container on remote server
+          # Stop & remove old container on remote server
           ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} "
             if [ \$(docker ps -q -f name=${CONTAINER_NAME}) ]; then
               docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}
@@ -77,10 +103,10 @@ pipeline {
 
   post {
     success {
-      echo "✅ Deployment completed successfully!"
+      echo "✅ CI/CD pipeline completed successfully!"
     }
     failure {
-      echo "❌ Deployment failed. Check logs."
+      echo "❌ Deployment failed — check Jenkins console logs."
     }
   }
 }
