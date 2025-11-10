@@ -7,21 +7,20 @@ pipeline {
     APP_NAME = "school-management-system"
     IMAGE_TAG = "${APP_NAME}:${env.BUILD_NUMBER}"
     CONTAINER_NAME = "${APP_NAME}"
-    DEPLOY_SERVER = "96.8.121.100"          // 🔁 Change to your target server IP
-    SSH_CRED_ID = "temp"              // 🔁 Your Jenkins SSH credential ID
+    DEPLOY_SERVER = "96.8.121.100"
+    SSH_CRED_ID = "temp"
   }
 
   triggers {
-    githubPush()  // 🚀 Auto-trigger when code pushed to GitHub
+    githubPush()
   }
 
   stages {
-
     stage('Clone or Pull Repo') {
       steps {
         script {
           if (fileExists("${PROJECT_DIR}/.git")) {
-            echo "🔁 Repository exists — pulling latest changes..."
+            echo "Repository exists — pulling latest..."
             dir("${PROJECT_DIR}") {
               sh '''
                 git fetch origin main
@@ -30,7 +29,7 @@ pipeline {
               '''
             }
           } else {
-            echo "🆕 Repository not found — cloning..."
+            echo "Cloning repository..."
             sh '''
               mkdir -p /root/projects
               cd /root/projects
@@ -45,7 +44,6 @@ pipeline {
       steps {
         sh '''
         if [ "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
-          echo "🧹 Removing old container..."
           docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}
         fi
         '''
@@ -57,7 +55,6 @@ pipeline {
         sh '''
         old_image=$(docker images -q ${APP_NAME})
         if [ -n "$old_image" ]; then
-          echo "🧹 Removing old image..."
           docker rmi -f $old_image || true
         fi
         '''
@@ -67,10 +64,7 @@ pipeline {
     stage('Build New Docker Image') {
       steps {
         dir("${PROJECT_DIR}") {
-          sh '''
-          echo "⚙️ Building new Docker image..."
-          docker build -t ${IMAGE_TAG} .
-          '''
+          sh 'docker build -t ${IMAGE_TAG} .'
         }
       }
     }
@@ -79,20 +73,11 @@ pipeline {
       steps {
         sshagent (credentials: [env.SSH_CRED_ID]) {
           sh '''
-          echo "🚀 Deploying to remote server ${DEPLOY_SERVER}..."
-
-          # Transfer image to remote server
           docker save ${IMAGE_TAG} | bzip2 | ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} 'bunzip2 | docker load'
-
-          # Stop & remove old container on remote server
           ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} "
             if [ \$(docker ps -q -f name=${CONTAINER_NAME}) ]; then
               docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}
             fi
-          "
-
-          # Run new container on remote server
-          ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} "
             docker run -d --name ${CONTAINER_NAME} -p 80:80 ${IMAGE_TAG}
           "
           '''
@@ -102,12 +87,8 @@ pipeline {
   }
 
   post {
-    success {
-      echo "✅ CI/CD pipeline completed successfully!"
-    }
-    failure {
-      echo "❌ Deployment failed — check Jenkins console logs."
-    }
+    success { echo "✅ Deployment finished successfully!" }
+    failure { echo "❌ Deployment failed." }
   }
 }
 
