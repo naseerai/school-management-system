@@ -2,70 +2,47 @@ pipeline {
   agent any
 
   environment {
-    PROJECT_DIR = "/root/projects/school-management-system"
     REPO_URL = "https://github.com/naseerai/school-management-system.git"
     APP_NAME = "school-management-system"
     IMAGE_TAG = "${APP_NAME}:${env.BUILD_NUMBER}"
     CONTAINER_NAME = "${APP_NAME}"
-    DEPLOY_SERVER = "96.8.121.100"
-    SSH_CRED_ID = "temp"
+
+    DEPLOY_SERVER = "96.8.121.100"      // remote server
+    SSH_CRED_ID   = "temp"              // Jenkins credential ID
+    REMOTE_PROJECT_DIR = "/root/projects/school-management-system"
   }
 
-  triggers {
-    githubPush()
-  }
+  triggers { githubPush() }
 
   stages {
-    stage('Clone or Pull Repo') {
+
+    stage('Checkout Source Code') {
       steps {
-        script {
-          if (fileExists("${PROJECT_DIR}/.git")) {
-            echo "Repository exists — pulling latest..."
-            dir("${PROJECT_DIR}") {
-              sh '''
-                git fetch origin main
-                git reset --hard origin/main
-                git clean -fd
-              '''
-            }
-          } else {
-            echo "Cloning repository..."
-            sh '''
-              mkdir -p /root/projects
-              cd /root/projects
-              git clone ${REPO_URL}
-            '''
-          }
-        }
+        echo "📦 Checking out latest code..."
+        checkout([$class: 'GitSCM',
+          branches: [[name: '*/main']],
+          userRemoteConfigs: [[url: "${REPO_URL}"]]
+        ])
       }
     }
 
-    stage('Remove Old Container') {
+    stage('Prepare .env file') {
       steps {
         sh '''
-        if [ "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
-          docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}
+        if [ -f .env.example ]; then
+          echo "📄 Copying .env.example → .env"
+          cp .env.example .env
+        else
+          echo "⚠️ No .env.example file found; skipping."
         fi
         '''
       }
     }
 
-    stage('Remove Old Image') {
+    stage('Build Docker Image (on Jenkins)') {
       steps {
-        sh '''
-        old_image=$(docker images -q ${APP_NAME})
-        if [ -n "$old_image" ]; then
-          docker rmi -f $old_image || true
-        fi
-        '''
-      }
-    }
-
-    stage('Build New Docker Image') {
-      steps {
-        dir("${PROJECT_DIR}") {
-          sh 'docker build -t ${IMAGE_TAG} .'
-        }
+        echo "⚙️ Building Docker image locally..."
+        sh 'docker build -t ${IMAGE_TAG} .'
       }
     }
 
@@ -73,11 +50,24 @@ pipeline {
       steps {
         sshagent (credentials: [env.SSH_CRED_ID]) {
           sh '''
-          docker save ${IMAGE_TAG} | bzip2 | ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} 'bunzip2 | docker load'
+          echo "🚀 Sending image to ${DEPLOY_SERVER}..."
+          docker save ${IMAGE_TAG} | bzip2 | \
+            ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} 'bunzip2 | docker load'
+
+          echo "🧹 Cleaning old container..."
           ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} "
             if [ \$(docker ps -q -f name=${CONTAINER_NAME}) ]; then
               docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}
             fi
+          "
+
+          echo "📂 Ensuring project directory exists..."
+          ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} "
+            sudo mkdir -p ${REMOTE_PROJECT_DIR} && sudo chown ubuntu:ubuntu ${REMOTE_PROJECT_DIR}
+          "
+
+          echo "🔥 Starting new container..."
+          ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} "
             docker run -d --name ${CONTAINER_NAME} -p 80:80 ${IMAGE_TAG}
           "
           '''
@@ -87,8 +77,8 @@ pipeline {
   }
 
   post {
-    success { echo "✅ Deployment finished successfully!" }
-    failure { echo "❌ Deployment failed." }
+    success { echo "✅ Deployment completed successfully!" }
+    failure { echo "❌ Deployment failed; check console output." }
   }
 }
 
