@@ -1,0 +1,87 @@
+pipeline {
+  agent any
+
+  environment {
+    APP_NAME = "myapp"
+    IMAGE_TAG = "${APP_NAME}:${env.BUILD_NUMBER}"
+    CONTAINER_NAME = "${APP_NAME}"
+    DEPLOY_SERVER = "3.109.132.145"        // <-- change to your main server IP
+    SSH_CRED_ID = "server1-ssh"            // <-- use your stored credential ID
+  }
+
+  triggers {
+    githubPush() // triggers pipeline on GitHub push
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Remove Old Container') {
+      steps {
+        sh '''
+        if [ "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
+          docker stop ${CONTAINER_NAME}
+          docker rm ${CONTAINER_NAME}
+        fi
+        '''
+      }
+    }
+
+    stage('Remove Old Image') {
+      steps {
+        sh '''
+        old_image=$(docker images -q ${APP_NAME})
+        if [ -n "$old_image" ]; then
+          docker rmi -f $old_image || true
+        fi
+        '''
+      }
+    }
+
+    stage('Build New Docker Image') {
+      steps {
+        sh '''
+        docker build -t ${IMAGE_TAG} .
+        '''
+      }
+    }
+
+    stage('Deploy to Remote Server') {
+      steps {
+        sshagent (credentials: [env.SSH_CRED_ID]) {
+          sh '''
+          # Copy new image to remote server (optional: use docker save/load or push to registry)
+          docker save ${IMAGE_TAG} | bzip2 | ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} 'bunzip2 | docker load'
+
+          # Stop and remove old container on remote server
+          ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} "
+            if [ \$(docker ps -q -f name=${CONTAINER_NAME}) ]; then
+              docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}
+            fi
+          "
+
+          # Run new container on remote server
+          ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} "
+            docker run -d --name ${CONTAINER_NAME} -p 80:80 ${IMAGE_TAG}
+          "
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "✅ Deployment completed successfully!"
+    }
+    failure {
+      echo "❌ Deployment failed. Check logs."
+    }
+  }
+}
+
