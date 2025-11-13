@@ -9,6 +9,7 @@ export type FeeItem = { id: string; name: string; amount: number; concession: nu
 
 export type StudentDetails = {
   id: string; name: string; roll_number: string; class: string; section: string; studying_year: string;
+  caste: string | null;
   student_types: { name: string } | null;
   fee_details: { [year: string]: FeeItem[] };
   academic_years: AcademicYear | null;

@@ -58,7 +58,7 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-muted/40">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">School Management</CardTitle>
+          <CardTitle className="text-2xl">Fee Management System</CardTitle>
           <CardDescription>Sign in to access the dashboard</CardDescription>
         </CardHeader>
         <CardContent>

@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "School Management",
-  description: "Admin portal for school management",
+  title: "Fee Management System",
+  description: "Admin portal for fee management",
 };
 
 export default function RootLayout({
