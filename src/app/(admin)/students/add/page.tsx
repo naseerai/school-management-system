@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, PlusCircle } from "lucide-react";
+import { Check, ChevronsUpDown, PlusCircle, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -143,8 +144,17 @@ export default function StudentsPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Students</CardTitle>
-        <CardDescription>Add single students or bulk upload via CSV.</CardDescription>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" asChild>
+            <Link href="/students">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <CardTitle>Add Student</CardTitle>
+            <CardDescription>Add single students or bulk upload via CSV.</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="single">
