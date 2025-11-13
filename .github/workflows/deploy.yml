@@ -1,0 +1,51 @@
+name: 🚀 Deploy School Management App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚀 SSH into Server and Deploy
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            PROJECTS_DIR="/root/projects"
+            PROJECT_NAME="school-management"
+            PROJECT_PATH="$PROJECTS_DIR/$PROJECT_NAME"
+
+            echo "🔍 Checking if project exists..."
+            if [ ! -d "$PROJECT_PATH" ]; then
+              echo "📦 Cloning repository..."
+              mkdir -p "$PROJECTS_DIR"
+              cd "$PROJECTS_DIR"
+              git clone https://github.com/kovvurisuryavenkatareddy/school-management.git "$PROJECT_NAME"
+            else
+              echo "🔁 Pulling latest code..."
+              cd "$PROJECT_PATH"
+              git fetch origin main
+              git reset --hard origin/main
+            fi
+
+            echo "⚙️ Copying environment file..."
+            cd "$PROJECT_PATH"
+            cp .env.example .env
+
+            echo "🧹 Removing old containers..."
+            docker compose down || true
+
+            echo "🗑️ Removing old image..."
+            docker image prune -f
+
+            echo "🚀 Starting containers..."
+            docker compose up -d --build
+
+            echo "✅ Deployment complete!"
