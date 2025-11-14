@@ -13,6 +13,8 @@ export type StudentDetails = {
   student_types: { name: string } | null;
   fee_details: { [year: string]: FeeItem[] };
   academic_years: AcademicYear | null;
+  email?: string | null;
+  phone?: string | null;
 };
 
 export type Payment = {
@@ -24,6 +26,7 @@ export type Payment = {
   created_at: string; 
   notes: string | null;
   utr_number: string | null;
+  receipt_number: number;
 };
 
 export type Invoice = {

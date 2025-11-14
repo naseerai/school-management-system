@@ -63,6 +63,19 @@ export default function ActivityLogsPage() {
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  const renderDetails = (log: ActivityLog) => {
+    switch (log.action) {
+      case 'Fee Collection':
+        return `Amount: ${log.details.amount}, Type: ${log.details.fee_type}`;
+      case 'Concession Applied':
+        return `Amount: ${log.details.amount}, Reason: ${log.details.notes}`;
+      case 'Invoice Payment':
+        return `Amount: ${log.details.amount}, Desc: ${log.details.description}`;
+      default:
+        return JSON.stringify(log.details);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -97,8 +110,7 @@ export default function ActivityLogsPage() {
                   <TableCell><Badge>{log.action}</Badge></TableCell>
                   <TableCell>{log.students ? `${log.students.name} (${log.students.roll_number})` : 'N/A'}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {log.action === 'Fee Collection' && `Amount: ${log.details.amount}, Type: ${log.details.fee_type}`}
-                    {log.action === 'Concession Applied' && `Amount: ${log.details.amount}, Reason: ${log.details.notes}`}
+                    {renderDetails(log)}
                   </TableCell>
                 </TableRow>
               ))

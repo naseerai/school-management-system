@@ -7,7 +7,7 @@ export function generateReceiptHtml(student: StudentDetails, payment: Payment, c
     year: 'numeric'
   });
 
-  const receiptNo = `R-${payment.id.substring(0, 8).toUpperCase()}`;
+  const receiptNo = String(payment.receipt_number).padStart(6, '0');
 
   const paymentDetailsRow = payment.payment_method === 'upi' && payment.utr_number
     ? `<strong>Payment Mode:</strong> UPI | <strong>UTR:</strong> ${payment.utr_number}`

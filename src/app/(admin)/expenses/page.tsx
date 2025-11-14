@@ -81,6 +81,7 @@ type Expense = {
   amount: number;
   description: string | null;
   department_id: string | null;
+  payment_mode: string | null;
   departments: Department | null;
   cashiers: Cashier | null;
 };
@@ -89,6 +90,7 @@ const formSchema = z.object({
   expense_date: z.string().min(1, "Date is required"),
   department_id: z.string().min(1, "Department is required"),
   amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
+  payment_mode: z.string().min(1, "Payment mode is required"),
   description: z.string().optional(),
 });
 
@@ -98,6 +100,7 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
+  const [userRole, setUserRole] = useState<'admin' | 'cashier' | null>(null);
   const [cashierProfile, setCashierProfile] = useState<{ id: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,12 +114,13 @@ export default function ExpensesPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedCashier, setSelectedCashier] = useState("all");
+  const [selectedPaymentMode, setSelectedPaymentMode] = useState("all");
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportDateRange, setExportDateRange] = useState<{ start: string, end: string } | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { expense_date: new Date().toISOString().split('T')[0], amount: 0 },
+    defaultValues: { expense_date: new Date().toISOString().split('T')[0], amount: 0, payment_mode: "Cash" },
   });
 
   useEffect(() => {
@@ -124,13 +128,19 @@ export default function ExpensesPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data } = await supabase.from('cashiers').select('id').eq('user_id', user.id).single();
-        setCashierProfile(data);
+        if (data) {
+          setCashierProfile(data);
+          setUserRole('cashier');
+        } else {
+          setUserRole('admin');
+        }
       }
     };
     getProfile();
   }, []);
 
   const fetchData = async () => {
+    if (!userRole) return;
     setIsLoading(true);
     const from = (currentPage - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
@@ -141,14 +151,21 @@ export default function ExpensesPage() {
       .order("expense_date", { ascending: false })
       .range(from, to);
     
-    if (selectedCashier && selectedCashier !== 'all') {
-      expensesQuery = expensesQuery.eq('cashier_id', selectedCashier);
+    if (userRole === 'cashier' && cashierProfile) {
+      expensesQuery = expensesQuery.eq('cashier_id', cashierProfile.id);
+    } else if (userRole === 'admin') {
+      if (selectedCashier && selectedCashier !== 'all') {
+        expensesQuery = expensesQuery.eq('cashier_id', selectedCashier);
+      }
+      if (selectedPaymentMode && selectedPaymentMode !== 'all') {
+        expensesQuery = expensesQuery.eq('payment_mode', selectedPaymentMode);
+      }
     }
 
     const [expensesRes, deptsRes, cashiersRes] = await Promise.all([
       expensesQuery,
       supabase.from("departments").select("id, name"),
-      supabase.from("cashiers").select("id, name"),
+      userRole === 'admin' ? supabase.from("cashiers").select("id, name") : Promise.resolve({ data: [], error: null }),
     ]);
 
     if (expensesRes.error) toast.error("Failed to fetch expenses.");
@@ -168,7 +185,7 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     fetchData();
-  }, [currentPage, selectedCashier]);
+  }, [currentPage, selectedCashier, selectedPaymentMode, userRole]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
@@ -211,6 +228,7 @@ export default function ExpensesPage() {
       ...expense,
       description: expense.description || "",
       department_id: expense.department_id || "",
+      payment_mode: expense.payment_mode || "Cash",
     });
     setDialogOpen(true);
   };
@@ -226,11 +244,14 @@ export default function ExpensesPage() {
       .lte('created_at', new Date(end + 'T23:59:59Z').toISOString());
 
     let expensesQuery = supabase.from("expenses")
-      .select("expense_date, amount, description, departments(name), cashiers(name)")
+      .select("expense_date, amount, description, payment_mode, departments(name), cashiers(name)")
       .gte('expense_date', start)
       .lte('expense_date', end);
 
-    if (selectedCashier && selectedCashier !== 'all') {
+    if (userRole === 'cashier' && cashierProfile) {
+      paymentsQuery = paymentsQuery.eq('cashier_id', cashierProfile.id);
+      expensesQuery = expensesQuery.eq('cashier_id', cashierProfile.id);
+    } else if (userRole === 'admin' && selectedCashier && selectedCashier !== 'all') {
       paymentsQuery = paymentsQuery.eq('cashier_id', selectedCashier);
       expensesQuery = expensesQuery.eq('cashier_id', selectedCashier);
     }
@@ -291,15 +312,16 @@ export default function ExpensesPage() {
           styles: { fontStyle: 'bold' }
         });
         autoTable(doc, {
-          head: [["Date", "Department", "Description", "Cashier", "Amount"]],
+          head: [["Date", "Department", "Description", "Mode", "Cashier", "Amount"]],
           body: expensesData.map((e: any) => [
             new Date(e.expense_date).toLocaleDateString(),
             e.departments?.name || "N/A",
             e.description || "",
+            e.payment_mode || "N/A",
             e.cashiers?.name || 'Admin/System',
             e.amount.toFixed(2),
           ]),
-          foot: [[{ content: 'Total Expense:', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, { content: totalExpense.toFixed(2), styles: { fontStyle: 'bold', halign: 'right' } }]],
+          foot: [[{ content: 'Total Expense:', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } }, { content: totalExpense.toFixed(2), styles: { fontStyle: 'bold', halign: 'right' } }]],
           showFoot: 'lastPage',
           theme: 'striped',
         });
@@ -339,17 +361,18 @@ export default function ExpensesPage() {
       reportData.push([]);
 
       reportData.push(["Expenses"]);
-      reportData.push(["Date", "Department", "Description", "Cashier", "Amount"]);
+      reportData.push(["Date", "Department", "Description", "Payment Mode", "Cashier", "Amount"]);
       expensesData.forEach((e: any) => {
         reportData.push([
           new Date(e.expense_date).toLocaleDateString(),
           e.departments?.name || "N/A",
           e.description || "",
+          e.payment_mode || "N/A",
           e.cashiers?.name || 'Admin/System',
           e.amount.toFixed(2),
         ]);
       });
-      reportData.push(["", "", "", "Total Expense:", totalExpense.toFixed(2)]);
+      reportData.push(["", "", "", "", "Total Expense:", totalExpense.toFixed(2)]);
       reportData.push([]);
 
       reportData.push(["Summary"]);
@@ -389,7 +412,7 @@ export default function ExpensesPage() {
   useEffect(() => {
     if (!dialogOpen) {
       setEditingExpense(null);
-      form.reset({ expense_date: new Date().toISOString().split('T')[0], amount: 0, description: "", department_id: "" });
+      form.reset({ expense_date: new Date().toISOString().split('T')[0], amount: 0, description: "", department_id: "", payment_mode: "Cash" });
     }
   }, [dialogOpen, form]);
 
@@ -430,6 +453,14 @@ export default function ExpensesPage() {
                       <FormField control={form.control} name="amount" render={({ field }) => (
                         <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
+                      <FormField control={form.control} name="payment_mode" render={({ field }) => (
+                        <FormItem><FormLabel>Payment Mode</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Select a payment mode" /></SelectTrigger></FormControl>
+                            <SelectContent><SelectItem value="Cash">Cash</SelectItem><SelectItem value="UPI">UPI</SelectItem></SelectContent>
+                          </Select>
+                        <FormMessage /></FormItem>
+                      )} />
                       <FormField control={form.control} name="description" render={({ field }) => (
                         <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
@@ -447,16 +478,31 @@ export default function ExpensesPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-end gap-4 pt-4">
-            <div className="flex-grow">
-              <Label>Cashier</Label>
-              <Select value={selectedCashier} onValueChange={setSelectedCashier}>
-                <SelectTrigger><SelectValue placeholder="All Cashiers" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Cashiers</SelectItem>
-                  {cashiers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {userRole === 'admin' && (
+              <>
+                <div className="flex-grow">
+                  <Label>Cashier</Label>
+                  <Select value={selectedCashier} onValueChange={setSelectedCashier}>
+                    <SelectTrigger><SelectValue placeholder="All Cashiers" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Cashiers</SelectItem>
+                      {cashiers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-grow">
+                  <Label>Payment Mode</Label>
+                  <Select value={selectedPaymentMode} onValueChange={setSelectedPaymentMode}>
+                    <SelectTrigger><SelectValue placeholder="All Modes" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Modes</SelectItem>
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="UPI">UPI</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
             <div className="flex-grow">
               <Label htmlFor="start-date">From</Label>
               <Input id="start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -485,13 +531,14 @@ export default function ExpensesPage() {
                 <TableHead>Department</TableHead>
                 <TableHead>Cashier</TableHead>
                 <TableHead>Amount</TableHead>
+                <TableHead>Payment Mode</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center">Loading...</TableCell></TableRow>
               ) : expenses.length > 0 ? (
                 expenses.map((exp) => (
                   <TableRow key={exp.id}>
@@ -499,6 +546,7 @@ export default function ExpensesPage() {
                     <TableCell>{exp.departments?.name || 'N/A'}</TableCell>
                     <TableCell>{exp.cashiers?.name || 'Admin/System'}</TableCell>
                     <TableCell>{exp.amount}</TableCell>
+                    <TableCell>{exp.payment_mode}</TableCell>
                     <TableCell>{exp.description}</TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -513,7 +561,7 @@ export default function ExpensesPage() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={6} className="text-center">No expenses found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center">No expenses found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
