@@ -186,11 +186,13 @@ export default function StudentListPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead padding="checkbox">
-                  <Checkbox
-                    checked={selectedStudents.length === students.length && students.length > 0}
-                    onCheckedChange={(value) => handleSelectAll(!!value)}
-                  />
+                <TableHead>
+                  <div className="flex items-center">
+                    <Checkbox
+                      checked={selectedStudents.length === students.length && students.length > 0}
+                      onCheckedChange={(value) => handleSelectAll(!!value)}
+                    />
+                  </div>
                 </TableHead>
                 <TableHead>Roll Number</TableHead>
                 <TableHead>Name</TableHead>
@@ -206,11 +208,13 @@ export default function StudentListPage() {
               ) : students.length > 0 ? (
                 students.map((student) => (
                   <TableRow key={student.id} data-state={selectedStudents.includes(student.id) && "selected"}>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        checked={selectedStudents.includes(student.id)}
-                        onCheckedChange={(value) => handleSelectRow(student.id, !!value)}
-                      />
+                    <TableCell>
+                      <div className="flex items-center">
+                        <Checkbox
+                          checked={selectedStudents.includes(student.id)}
+                          onCheckedChange={(value) => handleSelectRow(student.id, !!value)}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="font-medium">{student.roll_number}</TableCell>
                     <TableCell>{student.name}</TableCell>

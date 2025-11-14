@@ -11,6 +11,7 @@ export default {
   	extend: {
       fontFamily: {
         sans: ['var(--font-poppins)', 'sans-serif'],
+        ubuntu: ['var(--font-ubuntu)', 'sans-serif'],
       },
   		colors: {
   			background: 'hsl(var(--background))',
