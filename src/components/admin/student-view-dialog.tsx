@@ -6,6 +6,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { StudentDetails } from '@/types';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface StudentViewDialogProps {
   studentId: string | null;
@@ -42,7 +51,7 @@ export function StudentViewDialog({ studentId, open, onOpenChange }: StudentView
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Student Details</DialogTitle>
           <DialogDescription>
@@ -56,18 +65,55 @@ export function StudentViewDialog({ studentId, open, onOpenChange }: StudentView
             <Skeleton className="h-6 w-2/3" />
           </div>
         ) : student ? (
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-4 text-sm">
-            <div className="font-semibold">Name:</div><div>{student.name}</div>
-            <div className="font-semibold">Roll Number:</div><div>{student.roll_number}</div>
-            <div className="font-semibold">Class:</div><div>{student.class}</div>
-            <div className="font-semibold">Section:</div><div>{student.section}</div>
-            <div className="font-semibold">Studying Year:</div><div>{student.studying_year}</div>
-            <div className="font-semibold">Academic Year:</div><div>{student.academic_years?.year_name}</div>
-            <div className="font-semibold">Student Type:</div><div>{student.student_types?.name}</div>
-            <div className="font-semibold">Caste:</div><div>{student.caste || 'N/A'}</div>
-            <div className="font-semibold">Phone:</div><div>{student.phone || 'N/A'}</div>
-            <div className="font-semibold">Email:</div><div>{student.email || 'N/A'}</div>
-          </div>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="pr-6">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-4 text-sm">
+                <div className="font-semibold">Name:</div><div>{student.name}</div>
+                <div className="font-semibold">Roll Number:</div><div>{student.roll_number}</div>
+                <div className="font-semibold">Class:</div><div>{student.class}</div>
+                <div className="font-semibold">Section:</div><div>{student.section}</div>
+                <div className="font-semibold">Studying Year:</div><div>{student.studying_year}</div>
+                <div className="font-semibold">Academic Year:</div><div>{student.academic_years?.year_name}</div>
+                <div className="font-semibold">Student Type:</div><div>{student.student_types?.name}</div>
+                <div className="font-semibold">Caste:</div><div>{student.caste || 'N/A'}</div>
+                <div className="font-semibold">Phone:</div><div>{student.phone || 'N/A'}</div>
+                <div className="font-semibold">Email:</div><div>{student.email || 'N/A'}</div>
+              </div>
+
+              {student.fee_details && Object.keys(student.fee_details).length > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <h4 className="font-semibold mb-2 text-base">Fee Structure</h4>
+                  <div className="space-y-4">
+                    {Object.entries(student.fee_details).sort(([yearA], [yearB]) => yearA.localeCompare(yearB)).map(([year, feeItems]) => (
+                      feeItems && feeItems.length > 0 && (
+                        <div key={year}>
+                          <h5 className="font-medium text-sm mb-1">{year}</h5>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Fee Type</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                                <TableHead className="text-right">Concession</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {feeItems.map((item) => (
+                                <TableRow key={item.id}>
+                                  <TableCell>{item.name}</TableCell>
+                                  <TableCell className="text-right">{item.amount.toFixed(2)}</TableCell>
+                                  <TableCell className="text-right text-orange-600">{item.concession > 0 ? `-${item.concession.toFixed(2)}` : '0.00'}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         ) : null}
       </DialogContent>
     </Dialog>

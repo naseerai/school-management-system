@@ -189,23 +189,38 @@ export default function ExpensesPage() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    const dataToSubmit = {
-      ...values,
-      cashier_id: cashierProfile?.id || null,
-    };
-    const query = editingExpense
-      ? supabase.from("expenses").update(dataToSubmit).eq("id", editingExpense.id)
-      : supabase.from("expenses").insert([dataToSubmit]);
+    
+    if (editingExpense) {
+      // When admin edits, we only update form values, preserving the original cashier_id
+      const { error } = await supabase
+        .from("expenses")
+        .update(values)
+        .eq("id", editingExpense.id);
 
-    const { error } = await query;
-
-    if (error) {
-      toast.error(`Operation failed: ${error.message}`);
+      if (error) {
+        toast.error(`Operation failed: ${error.message}`);
+      } else {
+        toast.success(`Expense updated successfully!`);
+        await fetchData();
+        setDialogOpen(false);
+      }
     } else {
-      toast.success(`Expense ${editingExpense ? 'updated' : 'added'} successfully!`);
-      await fetchData();
-      setDialogOpen(false);
+      // When creating a new expense
+      const dataToSubmit = {
+        ...values,
+        cashier_id: cashierProfile?.id || null,
+      };
+      const { error } = await supabase.from("expenses").insert([dataToSubmit]);
+
+      if (error) {
+        toast.error(`Operation failed: ${error.message}`);
+      } else {
+        toast.success(`Expense added successfully!`);
+        await fetchData();
+        setDialogOpen(false);
+      }
     }
+    
     setIsSubmitting(false);
   };
 
