@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const currencyFormatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 });
+const yAxisFormatter = (value: number) => `₹ ${value}`;
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
 type Stats = {
@@ -223,11 +224,11 @@ export default function Dashboard() {
             <RechartsBarChart data={barChartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
-              <YAxis tickFormatter={(value) => currencyFormatter.format(value as number)} />
+              <YAxis tickFormatter={yAxisFormatter} />
               <Tooltip contentStyle={{ background: 'hsl(var(--background))' }} formatter={(value) => currencyFormatter.format(value as number)} />
               <Legend />
-              <Bar dataKey="income" fill="#16a34a" name="Fee Collection" />
-              <Bar dataKey="expenses" fill="#dc2626" name="Expenses" />
+              <Bar dataKey="income" fill="#16a34a" name="Fee Collection" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="expenses" fill="#dc2626" name="Expenses" radius={[4, 4, 0, 0]} />
             </RechartsBarChart>
           </ResponsiveContainer>
         </CardContent>
