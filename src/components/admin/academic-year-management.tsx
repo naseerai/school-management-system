@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Loader2, CheckCircle } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -44,12 +45,14 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 
@@ -62,6 +65,7 @@ type AcademicYear = {
 
 const formSchema = z.object({
   year_name: z.string().min(1, "Academic year name is required"),
+  is_active: z.boolean().default(false),
 });
 
 export function AcademicYearManagement() {
@@ -76,7 +80,7 @@ export function AcademicYearManagement() {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { year_name: "" },
+    defaultValues: { year_name: "", is_active: false },
   });
 
   const fetchData = async () => {
@@ -100,18 +104,55 @@ export function AcademicYearManagement() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    const query = editingItem
-      ? supabase.from("academic_years").update(values).eq("id", editingItem.id)
-      : supabase.from("academic_years").insert([{ ...values, is_active: false }]);
+    
+    if (editingItem) {
+      // If the user is trying to activate this year
+      if (values.is_active && !editingItem.is_active) {
+        const toastId = toast.loading("Updating active year...");
+        // First, deactivate the currently active year
+        await supabase
+            .from('academic_years')
+            .update({ is_active: false })
+            .eq('is_active', true);
+        
+        // Then, activate the new one
+        const { error } = await supabase
+            .from("academic_years")
+            .update(values)
+            .eq("id", editingItem.id);
 
-    const { error } = await query;
+        if (error) {
+            toast.error(`Update failed: ${error.message}`, { id: toastId });
+        } else {
+            toast.success("Academic Year updated successfully!", { id: toastId });
+            await fetchData();
+            setDialogOpen(false);
+        }
+      } else {
+        // Just a normal update (e.g., renaming or deactivating)
+        const { error } = await supabase
+            .from("academic_years")
+            .update(values)
+            .eq("id", editingItem.id);
 
-    if (error) {
-      toast.error(`Operation failed: ${error.message}`);
+        if (error) {
+            toast.error(`Update failed: ${error.message}`);
+        } else {
+            toast.success("Academic Year updated successfully!");
+            await fetchData();
+            setDialogOpen(false);
+        }
+      }
     } else {
-      toast.success(`Academic Year ${editingItem ? 'updated' : 'created'} successfully!`);
-      await fetchData();
-      setDialogOpen(false);
+      // Creating a new year. It's always inactive by default.
+      const { error } = await supabase.from("academic_years").insert([{ ...values, is_active: false }]);
+      if (error) {
+          toast.error(`Operation failed: ${error.message}`);
+      } else {
+          toast.success(`Academic Year created successfully!`);
+          await fetchData();
+          setDialogOpen(false);
+      }
     }
     setIsSubmitting(false);
   };
@@ -137,40 +178,14 @@ export function AcademicYearManagement() {
 
   const handleEdit = (item: AcademicYear) => {
     setEditingItem(item);
-    form.reset({ year_name: item.year_name });
+    form.reset({ year_name: item.year_name, is_active: item.is_active });
     setDialogOpen(true);
-  };
-
-  const handleSetActive = async (yearId: string) => {
-    const toastId = toast.loading("Setting active year...");
-    
-    const currentActive = items.find(item => item.is_active);
-
-    const updates = [];
-    if (currentActive) {
-        updates.push(
-            supabase.from('academic_years').update({ is_active: false }).eq('id', currentActive.id)
-        );
-    }
-    updates.push(
-        supabase.from('academic_years').update({ is_active: true }).eq('id', yearId)
-    );
-
-    const results = await Promise.all(updates);
-    const hasError = results.some(res => res.error);
-
-    if (hasError) {
-        toast.error("Failed to set active year.", { id: toastId });
-    } else {
-        toast.success("Active year has been updated.", { id: toastId });
-        fetchData();
-    }
   };
 
   useEffect(() => {
     if (!dialogOpen) {
       setEditingItem(null);
-      form.reset({ year_name: "" });
+      form.reset({ year_name: "", is_active: false });
     }
   }, [dialogOpen, form]);
 
@@ -193,6 +208,25 @@ export function AcademicYearManagement() {
                 <FormField control={form.control} name="year_name" render={({ field }) => (
                   <FormItem><FormLabel>Academic Year Name</FormLabel><FormControl><Input {...field} placeholder="e.g., 2024-2025" /></FormControl><FormMessage /></FormItem>
                 )} />
+                {editingItem && (
+                  <FormField control={form.control} name="is_active" render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Set as Active Year</FormLabel>
+                        <FormDescription>
+                          Only one academic year can be active at a time.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={editingItem.is_active}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                )}
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                   <Button type="submit" disabled={isSubmitting}>
@@ -235,12 +269,6 @@ export function AcademicYearManagement() {
                       <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        {!item.is_active && (
-                            <DropdownMenuItem onSelect={() => handleSetActive(item.id)}>
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Set as active year
-                            </DropdownMenuItem>
-                        )}
                         <DropdownMenuItem onSelect={() => handleEdit(item)}><Pencil className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
                         <DropdownMenuItem className="text-red-600" onSelect={() => { setItemToDelete(item); setDeleteAlertOpen(true); }}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                       </DropdownMenuContent>
