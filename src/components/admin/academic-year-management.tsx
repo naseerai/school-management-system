@@ -106,23 +106,7 @@ export function AcademicYearManagement() {
     setIsSubmitting(true);
     const toastId = toast.loading("Saving academic year...");
 
-    // If we are making a year active, we must first deactivate any other active year.
-    if (values.is_active) {
-      const { error: deactivateError } = await supabase
-        .from('academic_years')
-        .update({ is_active: false })
-        .eq('is_active', true)
-        // Make sure we don't try to deactivate the item we are currently editing
-        .neq('id', editingItem?.id || '00000000-0000-0000-0000-000000000000');
-
-      if (deactivateError) {
-        toast.error(`Failed to deactivate current year: ${deactivateError.message}`, { id: toastId });
-        setIsSubmitting(false);
-        return;
-      }
-    }
-
-    // Now, perform the insert or update
+    // Perform the insert or update
     if (editingItem) {
       const { error } = await supabase
         .from("academic_years")
@@ -207,7 +191,7 @@ export function AcademicYearManagement() {
                     <div className="space-y-0.5">
                       <FormLabel>Set as Active Year</FormLabel>
                       <FormDescription>
-                        Only one academic year can be active at a time.
+                        Active years will appear in student-related dropdowns.
                       </FormDescription>
                     </div>
                     <FormControl>
