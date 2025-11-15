@@ -82,6 +82,7 @@ type Expense = {
   description: string | null;
   department_id: string | null;
   payment_mode: string | null;
+  utr_number: string | null;
   departments: Department | null;
   cashiers: Cashier | null;
 };
@@ -92,6 +93,15 @@ const formSchema = z.object({
   amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
   payment_mode: z.string().min(1, "Payment mode is required"),
   description: z.string().optional(),
+  utr_number: z.string().optional(),
+}).refine(data => {
+  if (data.payment_mode === 'UPI') {
+    return data.utr_number && data.utr_number.trim().length > 0;
+  }
+  return true;
+}, {
+  message: "UTR Number is required for UPI payments.",
+  path: ["utr_number"],
 });
 
 const PAGE_SIZE = 10;
@@ -120,8 +130,10 @@ export default function ExpensesPage() {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { expense_date: new Date().toISOString().split('T')[0], amount: 0, payment_mode: "Cash" },
+    defaultValues: { expense_date: new Date().toISOString().split('T')[0], amount: 0, payment_mode: "Cash", utr_number: "" },
   });
+
+  const watchedPaymentMode = form.watch("payment_mode");
 
   useEffect(() => {
     const getProfile = async () => {
@@ -244,6 +256,7 @@ export default function ExpensesPage() {
       description: expense.description || "",
       department_id: expense.department_id || "",
       payment_mode: expense.payment_mode || "Cash",
+      utr_number: expense.utr_number || "",
     });
     setDialogOpen(true);
   };
@@ -427,7 +440,7 @@ export default function ExpensesPage() {
   useEffect(() => {
     if (!dialogOpen) {
       setEditingExpense(null);
-      form.reset({ expense_date: new Date().toISOString().split('T')[0], amount: 0, description: "", department_id: "", payment_mode: "Cash" });
+      form.reset({ expense_date: new Date().toISOString().split('T')[0], amount: 0, description: "", department_id: "", payment_mode: "Cash", utr_number: "" });
     }
   }, [dialogOpen, form]);
 
@@ -476,6 +489,15 @@ export default function ExpensesPage() {
                           </Select>
                         <FormMessage /></FormItem>
                       )} />
+                      {watchedPaymentMode === 'UPI' && (
+                        <FormField control={form.control} name="utr_number" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>UTR Number</FormLabel>
+                            <FormControl><Input {...field} placeholder="Enter UTR number" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      )}
                       <FormField control={form.control} name="description" render={({ field }) => (
                         <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
@@ -547,13 +569,14 @@ export default function ExpensesPage() {
                 <TableHead>Cashier</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Payment Mode</TableHead>
+                <TableHead>UTR Number</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead><span className="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center">Loading...</TableCell></TableRow>
               ) : expenses.length > 0 ? (
                 expenses.map((exp) => (
                   <TableRow key={exp.id}>
@@ -562,6 +585,7 @@ export default function ExpensesPage() {
                     <TableCell>{exp.cashiers?.name || 'Admin/System'}</TableCell>
                     <TableCell>{exp.amount}</TableCell>
                     <TableCell>{exp.payment_mode}</TableCell>
+                    <TableCell>{exp.utr_number || 'N/A'}</TableCell>
                     <TableCell>{exp.description}</TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -576,7 +600,7 @@ export default function ExpensesPage() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={7} className="text-center">No expenses found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center">No expenses found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

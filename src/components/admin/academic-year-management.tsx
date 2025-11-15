@@ -65,7 +65,7 @@ type AcademicYear = {
 
 const formSchema = z.object({
   year_name: z.string().min(1, "Academic year name is required"),
-  is_active: z.boolean().default(false),
+  is_active: z.boolean(),
 });
 
 export function AcademicYearManagement() {

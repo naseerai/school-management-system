@@ -86,13 +86,13 @@ export function ManagementTable({ tableName, columnName, title }: ManagementTabl
     setIsLoading(true);
     const { data, error } = await supabase
       .from(tableName)
-      .select(`id, ${columnName}, created_at`)
+      .select("id, created_at, *")
       .order("created_at", { ascending: false });
 
     if (error) {
       toast.error(`Failed to fetch ${title.toLowerCase()}.`);
     } else {
-      setItems(data || []);
+      setItems((data as GenericItem[]) || []);
     }
     setIsLoading(false);
   };
