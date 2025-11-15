@@ -225,7 +225,7 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis tickFormatter={yAxisFormatter} />
-              <Tooltip contentStyle={{ background: 'hsl(var(--background))' }} formatter={(value) => currencyFormatter.format(value as number)} />
+              <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ background: 'hsl(var(--background))' }} formatter={(value) => currencyFormatter.format(value as number)} />
               <Legend />
               <Bar dataKey="income" fill="#16a34a" name="Fee Collection" radius={[4, 4, 0, 0]} />
               <Bar dataKey="expenses" fill="#dc2626" name="Expenses" radius={[4, 4, 0, 0]} />
