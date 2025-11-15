@@ -14,6 +14,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { ManagementTable } from "@/components/admin/management-table";
+import { AcademicYearManagement } from "@/components/admin/academic-year-management";
 
 export default function ClassManagementPage() {
   return (
@@ -46,7 +47,7 @@ export default function ClassManagementPage() {
             <ManagementTable tableName="student_types" columnName="name" title="Student Type" />
           </TabsContent>
           <TabsContent value="academic_years" className="pt-6">
-            <ManagementTable tableName="academic_years" columnName="year_name" title="Academic Year" />
+            <AcademicYearManagement />
           </TabsContent>
         </Tabs>
       </CardContent>
