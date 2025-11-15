@@ -104,56 +104,50 @@ export function AcademicYearManagement() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    
-    if (editingItem) {
-      // If the user is trying to activate this year
-      if (values.is_active && !editingItem.is_active) {
-        const toastId = toast.loading("Updating active year...");
-        // First, deactivate the currently active year
-        await supabase
-            .from('academic_years')
-            .update({ is_active: false })
-            .eq('is_active', true);
-        
-        // Then, activate the new one
-        const { error } = await supabase
-            .from("academic_years")
-            .update(values)
-            .eq("id", editingItem.id);
+    const toastId = toast.loading("Saving academic year...");
 
-        if (error) {
-            toast.error(`Update failed: ${error.message}`, { id: toastId });
-        } else {
-            toast.success("Academic Year updated successfully!", { id: toastId });
-            await fetchData();
-            setDialogOpen(false);
-        }
-      } else {
-        // Just a normal update (e.g., renaming or deactivating)
-        const { error } = await supabase
-            .from("academic_years")
-            .update(values)
-            .eq("id", editingItem.id);
+    // If we are making a year active, we must first deactivate any other active year.
+    if (values.is_active) {
+      const { error: deactivateError } = await supabase
+        .from('academic_years')
+        .update({ is_active: false })
+        .eq('is_active', true)
+        // Make sure we don't try to deactivate the item we are currently editing
+        .neq('id', editingItem?.id || '00000000-0000-0000-0000-000000000000');
 
-        if (error) {
-            toast.error(`Update failed: ${error.message}`);
-        } else {
-            toast.success("Academic Year updated successfully!");
-            await fetchData();
-            setDialogOpen(false);
-        }
-      }
-    } else {
-      // Creating a new year. It's always inactive by default.
-      const { error } = await supabase.from("academic_years").insert([{ ...values, is_active: false }]);
-      if (error) {
-          toast.error(`Operation failed: ${error.message}`);
-      } else {
-          toast.success(`Academic Year created successfully!`);
-          await fetchData();
-          setDialogOpen(false);
+      if (deactivateError) {
+        toast.error(`Failed to deactivate current year: ${deactivateError.message}`, { id: toastId });
+        setIsSubmitting(false);
+        return;
       }
     }
+
+    // Now, perform the insert or update
+    if (editingItem) {
+      const { error } = await supabase
+        .from("academic_years")
+        .update(values)
+        .eq("id", editingItem.id);
+
+      if (error) {
+        toast.error(`Update failed: ${error.message}`, { id: toastId });
+      } else {
+        toast.success("Academic Year updated successfully!", { id: toastId });
+      }
+    } else { // Creating a new item
+      const { error } = await supabase
+        .from("academic_years")
+        .insert([values]);
+
+      if (error) {
+        toast.error(`Creation failed: ${error.message}`, { id: toastId });
+      } else {
+        toast.success("Academic Year created successfully!", { id: toastId });
+      }
+    }
+
+    await fetchData();
+    setDialogOpen(false);
     setIsSubmitting(false);
   };
 
@@ -208,25 +202,22 @@ export function AcademicYearManagement() {
                 <FormField control={form.control} name="year_name" render={({ field }) => (
                   <FormItem><FormLabel>Academic Year Name</FormLabel><FormControl><Input {...field} placeholder="e.g., 2024-2025" /></FormControl><FormMessage /></FormItem>
                 )} />
-                {editingItem && (
-                  <FormField control={form.control} name="is_active" render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Set as Active Year</FormLabel>
-                        <FormDescription>
-                          Only one academic year can be active at a time.
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={editingItem.is_active}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )} />
-                )}
+                <FormField control={form.control} name="is_active" render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Set as Active Year</FormLabel>
+                      <FormDescription>
+                        Only one academic year can be active at a time.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )} />
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                   <Button type="submit" disabled={isSubmitting}>
