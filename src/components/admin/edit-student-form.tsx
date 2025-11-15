@@ -93,7 +93,7 @@ export function EditStudentForm({ studentId }: EditStudentFormProps) {
     setIsLoading(true);
     const [typesRes, yearsRes, studentRes, groupsRes, studentDataRes] = await Promise.all([
       supabase.from("student_types").select("*"),
-      supabase.from("academic_years").select("*").order("year_name", { ascending: false }),
+      supabase.from("academic_years").select("*").eq('is_active', true).order("year_name", { ascending: false }),
       supabase.from("students").select("*").eq("id", studentId).single(),
       supabase.from("class_groups").select("*"),
       supabase.from("students").select("section, studying_year"),

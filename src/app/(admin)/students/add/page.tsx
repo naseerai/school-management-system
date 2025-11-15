@@ -102,7 +102,7 @@ export default function StudentsPage() {
   const fetchData = async () => {
     const [typesRes, yearsRes, groupsRes, sectionsRes, studyingYearsRes] = await Promise.all([
       supabase.from("student_types").select("*"),
-      supabase.from("academic_years").select("*").order("year_name", { ascending: false }),
+      supabase.from("academic_years").select("*").eq('is_active', true).order("year_name", { ascending: false }),
       supabase.from("class_groups").select("*"),
       supabase.from("sections").select("*"),
       supabase.from("studying_years").select("*"),
@@ -243,7 +243,7 @@ export default function StudentsPage() {
             </Form>
           </TabsContent>
           <TabsContent value="bulk" className="pt-6">
-            <BulkStudentUpload academicYears={academicYears} studentTypes={studentTypes} onSuccess={fetchData} />
+            <BulkStudentUpload onSuccess={fetchData} />
           </TabsContent>
         </Tabs>
       </CardContent>

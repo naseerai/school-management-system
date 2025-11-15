@@ -33,7 +33,7 @@ export function useFeeCollection() {
         }
       }
 
-      const { data, error } = await supabase.from("academic_years").select("*").order("year_name", { ascending: false });
+      const { data, error } = await supabase.from("academic_years").select("*").eq('is_active', true).order("year_name", { ascending: false });
       if (error) toast.error("Failed to fetch academic years.");
       else setAcademicYears(data || []);
       
