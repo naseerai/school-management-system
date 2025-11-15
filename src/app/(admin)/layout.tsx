@@ -71,7 +71,7 @@ export default function AdminLayout({
         '/invoices', 
         '/cashiers', 
         '/departments', 
-        '/academic-years',
+        '/class-management',
         '/activity-logs',
         '/settings'
       ];

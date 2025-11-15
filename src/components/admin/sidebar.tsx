@@ -10,7 +10,7 @@ import {
   UserCircle,
   Building,
   TrendingUp,
-  Calendar,
+  Library,
   Package2,
   History,
 } from "lucide-react";
@@ -30,7 +30,7 @@ const allNavItems = [
   { href: "/cashiers", icon: UserCircle, label: "Cashiers", roles: ['admin'] },
   { href: "/departments", icon: Building, label: "Departments", roles: ['admin'] },
   { href: "/expenses", icon: TrendingUp, label: "Expenses", roles: ['admin', 'cashier'] },
-  { href: "/academic-years", icon: Calendar, label: "Academic Years", roles: ['admin'] },
+  { href: "/class-management", icon: Library, label: "Class Management", roles: ['admin'] },
   { href: "/activity-logs", icon: History, label: "Activity Logs", roles: ['admin'] },
   { href: "/fee-collection", icon: Receipt, label: "Fee Collection", roles: ['admin', 'cashier'] },
 ];
